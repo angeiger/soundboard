@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --neon-cyan: #00f0ff;
+    --neon-magenta: #ff2e97;
+    --neon-lime: #b6ff00;
+    --neon-violet: #a855f7;
+    --neon-amber: #ffb020;
+    --neon-blue: #3b82f6;
+    --neon-orange: #ff6b35;
+    --neon-red: #ff3b3b;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-bg text-txt font-sans antialiased overflow-hidden select-none;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-line rounded;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-line-hi;
+  }
+}
+
+@layer components {
+  /*
+   * One accent per pad, driven by --c. Glow only appears on hover or while a
+   * pad is actually playing -- rationing it is what keeps neon from reading as
+   * a gaming-chair advert.
+   */
+  .pad {
+    @apply relative flex flex-col overflow-hidden rounded-xl border border-line bg-surface p-3;
+    @apply cursor-pointer transition-transform duration-100 ease-snap;
+    color: var(--c);
+  }
+  .pad:hover {
+    transform: translateY(-2px);
+    border-color: var(--c);
+    box-shadow:
+      0 0 0 1px var(--c),
+      0 0 22px -6px var(--c);
+  }
+  .pad:active {
+    transform: translateY(0) scale(0.985);
+  }
+  .pad--playing {
+    border-color: var(--c);
+    box-shadow:
+      0 0 0 1px var(--c),
+      0 0 30px -8px var(--c);
+    background: color-mix(in srgb, var(--c) 7%, #101018);
+  }
+
+  .pad-key {
+    @apply absolute right-2.5 top-2.5 rounded-md border border-line px-1.5 py-0.5;
+    @apply font-mono text-[9.5px] font-bold tracking-wider text-txt-dim;
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .pad:hover .pad-key,
+  .pad--playing .pad-key {
+    border-color: var(--c);
+    color: var(--c);
+    background: color-mix(in srgb, var(--c) 10%, transparent);
+  }
+
+  .chip {
+    @apply flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5;
+    @apply text-[11.5px] text-txt-dim transition-colors;
+  }
+  .chip:hover {
+    @apply border-line-hi text-txt;
+  }
+
+  .btn-ghost {
+    @apply rounded-lg border border-transparent px-3 py-1.5 text-[12px] text-txt-dim;
+    @apply transition-colors hover:bg-surface-2 hover:text-txt;
+  }
+
+  .field {
+    @apply w-full rounded-lg border border-line bg-bg px-3 py-2 text-[13px] text-txt;
+    @apply outline-none transition-colors placeholder:text-txt-faint;
+  }
+  .field:focus {
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 0 1px var(--neon-cyan);
+  }
+
+  .label {
+    @apply text-[10px] uppercase tracking-[0.16em] text-txt-faint;
+  }
+}
+
+@layer utilities {
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+}

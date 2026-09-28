@@ -1,0 +1,30 @@
+appId: com.andreas.soundboard
+productName: Soundboard
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!{tailwind.config.js,postcss.config.js,electron-builder.yml}'
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: ${productName}-${version}-setup.${ext}
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  createDesktopShortcut: always
+  shortcutName: Soundboard
+# Declared now so every build emits latest.yml alongside the installer. Nothing
+# is uploaded without an explicit --publish, but electron-updater needs that
+# file to exist in the release, and adding it retroactively means re-cutting
+# every release made before it.
+publish:
+  provider: github
+  owner: angeiger
+  repo: soundboard
