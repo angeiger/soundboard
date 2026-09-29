@@ -7,6 +7,7 @@ import { PadGrid } from './components/PadGrid'
 import { BottomBar } from './components/BottomBar'
 import { PadEditor } from './components/PadEditor'
 import { SettingsPanel } from './components/SettingsPanel'
+import { ElevationBanner } from './components/ElevationBanner'
 
 export default function App(): React.JSX.Element {
   const load = useStore((s) => s.load)
@@ -56,6 +57,8 @@ export default function App(): React.JSX.Element {
   return (
     <div className="flex h-full flex-col bg-bg">
       <TitleBar />
+
+      <ElevationBanner />
 
       {hotkeyIssues.length > 0 && (
         <div className="border-b border-[rgba(255,176,32,.25)] bg-[rgba(255,176,32,.06)] px-4 py-2 text-[11.5px] text-[var(--neon-amber)]">

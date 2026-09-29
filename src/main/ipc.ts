@@ -3,6 +3,7 @@ import { loadConfig, saveConfig } from './store'
 import * as library from './library'
 import { syncPadHotkeys, unregisterAll, validateAccelerator } from './hotkeys'
 import { writePack, readPack } from './soundpack'
+import { isElevated, relaunchElevated } from './elevation'
 import type { Config, Pad, PackManifest } from '@shared/types'
 
 export function registerIpc(getWindow: () => BrowserWindow | null): void {
@@ -124,6 +125,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       return { ok: false as const, reason: (err as Error).message }
     }
   })
+
+  ipcMain.handle('app:isElevated', () => isElevated())
+  ipcMain.handle('app:relaunchElevated', () => relaunchElevated())
 
   ipcMain.handle('window:minimize', () => getWindow()?.minimize())
   ipcMain.handle('window:toggleMaximize', () => {

@@ -53,6 +53,10 @@ const api = {
       | { ok: false; reason: string }
     > => ipcRenderer.invoke('pack:import')
   },
+  app: {
+    isElevated: (): Promise<boolean> => ipcRenderer.invoke('app:isElevated'),
+    relaunchElevated: (): Promise<void> => ipcRenderer.invoke('app:relaunchElevated')
+  },
   window: {
     minimize: (): Promise<void> => ipcRenderer.invoke('window:minimize'),
     toggleMaximize: (): Promise<void> => ipcRenderer.invoke('window:toggleMaximize'),
