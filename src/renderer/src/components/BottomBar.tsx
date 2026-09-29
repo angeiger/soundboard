@@ -1,4 +1,5 @@
 import { useStore } from '@/state/store'
+import { positionToGain, gainToDisplay, formatGainDb } from '@/audio/volume'
 
 export function BottomBar(): React.JSX.Element {
   const output = useStore((s) => s.config.output)
@@ -9,6 +10,8 @@ export function BottomBar(): React.JSX.Element {
   const setMaster = useStore((s) => s.setMaster)
   const setSettingsOpen = useStore((s) => s.setSettingsOpen)
   const panic = useStore((s) => s.panic)
+
+  const masterPos = gainToDisplay(master)
 
   const cable = devices.outputs.find((d) => d.deviceId === output.cableDeviceId)
   const monitor = devices.outputs.find((d) => d.deviceId === output.monitorDeviceId)
@@ -75,14 +78,20 @@ export function BottomBar(): React.JSX.Element {
           min={0}
           max={100}
           step={1}
-          value={Math.round(master * 100)}
-          onChange={(e) => setMaster(Number(e.target.value) / 100)}
+          value={masterPos}
+          onChange={(e) => setMaster(positionToGain(Number(e.target.value) / 100))}
           className="h-[3px] w-[110px] cursor-pointer appearance-none rounded-sm bg-line accent-[var(--neon-cyan)]"
           style={{
-            background: `linear-gradient(to right, var(--neon-cyan) ${master * 100}%, #22222E ${master * 100}%)`
+            background: `linear-gradient(to right, var(--neon-cyan) ${masterPos}%, #22222E ${masterPos}%)`
           }}
+          title={`Master level — ${formatGainDb(master)}`}
         />
-        <span className="w-6 font-mono text-[11px] text-txt">{Math.round(master * 100)}</span>
+        <span
+          className="w-12 font-mono text-[11px] tabular-nums text-txt"
+          title={`${masterPos} of 100`}
+        >
+          {formatGainDb(master)}
+        </span>
       </div>
 
       <button

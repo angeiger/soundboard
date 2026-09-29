@@ -1,5 +1,6 @@
 import { useStore } from '@/state/store'
 import type { AudioDevice } from '@shared/types'
+import { positionToGain, gainToDisplay, formatGainDb } from '@/audio/volume'
 
 const VB_CABLE_URL = 'https://vb-audio.com/Cable/'
 
@@ -129,17 +130,19 @@ export function SettingsPanel(): React.JSX.Element {
           />
           <div className="mt-2.5">
             <div className="label mb-1.5">
-              Monitor volume · {Math.round(output.monitorGain * 100)}%
+              Monitor volume · {formatGainDb(output.monitorGain)}
             </div>
             <input
               type="range"
               min={0}
               max={100}
-              value={Math.round(output.monitorGain * 100)}
-              onChange={(e) => setOutput({ monitorGain: Number(e.target.value) / 100 })}
+              value={gainToDisplay(output.monitorGain)}
+              onChange={(e) =>
+                setOutput({ monitorGain: positionToGain(Number(e.target.value) / 100) })
+              }
               className="h-[3px] w-full cursor-pointer appearance-none rounded-sm"
               style={{
-                background: `linear-gradient(to right, var(--neon-cyan) ${output.monitorGain * 100}%, #22222E ${output.monitorGain * 100}%)`
+                background: `linear-gradient(to right, var(--neon-cyan) ${gainToDisplay(output.monitorGain)}%, #22222E ${gainToDisplay(output.monitorGain)}%)`
               }}
             />
             <p className="mt-1.5 text-[11px] text-txt-faint">
