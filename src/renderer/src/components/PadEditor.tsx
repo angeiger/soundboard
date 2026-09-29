@@ -1,5 +1,6 @@
 import { useStore } from '@/state/store'
-import { NEON_HEX, formatDuration } from '@/colors'
+import { NEON_HEX } from '@/colors'
+import { formatDuration } from '@/format'
 import { NEON_COLORS, PLAY_MODES } from '@shared/defaults'
 import type { PlayMode } from '@shared/types'
 import { HotkeyCapture } from './HotkeyCapture'

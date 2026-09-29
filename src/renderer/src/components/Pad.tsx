@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Pad as PadModel } from '@shared/types'
-import { NEON_HEX, formatDuration } from '@/colors'
+import { NEON_HEX } from '@/colors'
+import { formatDuration } from '@/format'
 import { formatAccelerator } from '@/state/hotkey'
 import { downsamplePeaks } from '@/audio/peaks'
 import { engine } from '@/audio/engine'
