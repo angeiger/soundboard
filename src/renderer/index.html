@@ -3,9 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <title>Soundboard</title>
+    <!--
+      Audio worklets load from blob: URLs, and worklets are governed by
+      script-src, not worker-src. With blob: only on worker-src, as before, the
+      noise gate was refused and never ran -- silently, until its failure was
+      surfaced in Settings.
+    -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; media-src 'self' blob: mediastream:; worker-src blob:; img-src 'self' data:"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' blob:; media-src 'self' blob: mediastream:; img-src 'self' data:"
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
