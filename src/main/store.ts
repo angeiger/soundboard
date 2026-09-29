@@ -22,6 +22,13 @@ export function migrate(raw: Config): Config {
   // Settings, where it now uses Control+Alt+digit instead.
   if ((raw.version ?? 1) < 2) merged.bankHotkeysEnabled = false
 
+  // setupCompleted existed before v3 but nothing ever set it, so every older
+  // config says false. Someone who already picked a cable device has been
+  // through setup by hand and should not be walked through it again on
+  // update; anyone who has not gets the wizard. It stays re-openable from
+  // Settings either way.
+  if ((raw.version ?? 1) < 3 && raw.output?.cableDeviceId) merged.setupCompleted = true
+
   // Never read by anything, and removed from Config. The spread above would
   // otherwise carry it forward in every saved file indefinitely.
   Reflect.deleteProperty(merged, 'launchMinimised')

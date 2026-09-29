@@ -35,6 +35,26 @@ describe('migrate', () => {
     expect(migrate(raw).bankHotkeysEnabled).toBe(true)
   })
 
+  it('skips the setup wizard for older configs that already chose a cable', async () => {
+    const { migrate } = await import('./store')
+    const configured = { ...defaultConfig(), version: 2 }
+    configured.output.cableDeviceId = 'cable-id'
+    expect(migrate(configured).setupCompleted).toBe(true)
+  })
+
+  it('still shows the wizard to older configs that never chose a cable', async () => {
+    const { migrate } = await import('./store')
+    expect(migrate({ ...defaultConfig(), version: 2 }).setupCompleted).toBe(false)
+  })
+
+  it('never reopens a finished setup, or finishes an open one, for current configs', async () => {
+    const { migrate } = await import('./store')
+    const fresh = defaultConfig()
+    fresh.output.cableDeviceId = 'cable-id'
+    expect(migrate(fresh).setupCompleted).toBe(false)
+    expect(migrate({ ...defaultConfig(), setupCompleted: true }).setupCompleted).toBe(true)
+  })
+
   it('drops launchMinimised, which nothing reads', async () => {
     const { migrate } = await import('./store')
     expect('launchMinimised' in migrate(v1Config())).toBe(false)

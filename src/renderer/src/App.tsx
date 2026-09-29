@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '@/state/store'
-import { listDevices, primeDevicePermissions, onDeviceChange } from '@/audio/devices'
+import { primeDevicePermissions, onDeviceChange } from '@/audio/devices'
 import { TitleBar } from './components/TitleBar'
 import { Sidebar } from './components/Sidebar'
 import { PadGrid } from './components/PadGrid'
 import { BottomBar } from './components/BottomBar'
 import { PadEditor } from './components/PadEditor'
 import { SettingsPanel } from './components/SettingsPanel'
+import { SetupWizard } from './components/SetupWizard'
 import type { HotkeyRegistrationResult, Pad } from '@shared/types'
 
 /** Names the pads involved, so the banner says what to fix rather than just how many. */
@@ -29,9 +30,10 @@ export default function App(): React.JSX.Element {
   const triggerPad = useStore((s) => s.triggerPad)
   const panic = useStore((s) => s.panic)
   const setActiveBankByIndex = useStore((s) => s.setActiveBankByIndex)
-  const setDevices = useStore((s) => s.setDevices)
+  const refreshDevices = useStore((s) => s.refreshDevices)
   const editingPadId = useStore((s) => s.editingPadId)
   const settingsOpen = useStore((s) => s.settingsOpen)
+  const setupOpen = useStore((s) => s.setupOpen)
   const hotkeyIssues = useStore((s) => s.hotkeyIssues)
   const pads = useStore((s) => s.config.pads)
   const [hookError, setHookError] = useState<string | null>(null)
@@ -46,16 +48,15 @@ export default function App(): React.JSX.Element {
     void window.api.hotkeys.hookError().then(setHookError)
   }, [])
 
-  // Device labels stay blank until mic permission has been granted once, so
-  // prime it before the first enumeration.
+  // The cable is recognised by name, so make sure labels are available before
+  // the first enumeration. Every later change re-lists and reconnects.
   useEffect(() => {
-    const refresh = async (): Promise<void> => setDevices(await listDevices())
     void (async () => {
       await primeDevicePermissions()
-      await refresh()
+      await refreshDevices()
     })()
-    return onDeviceChange(() => void refresh())
-  }, [setDevices])
+    return onDeviceChange(() => void refreshDevices())
+  }, [refreshDevices])
 
   useEffect(() => {
     const offPad = window.api.on.padTrigger((padId) => void triggerPad(padId))
@@ -111,6 +112,7 @@ export default function App(): React.JSX.Element {
 
       {editingPadId && <PadEditor padId={editingPadId} />}
       {settingsOpen && <SettingsPanel />}
+      {setupOpen && <SetupWizard />}
     </div>
   )
 }

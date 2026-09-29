@@ -1,12 +1,28 @@
 import { useStore } from '@/state/store'
+import { cableHealth } from '@/state/health'
+
+const PILL = {
+  ok: { color: 'var(--neon-lime)', border: 'rgba(182,255,0,.25)', bg: 'rgba(182,255,0,.06)' },
+  warn: { color: 'var(--neon-amber)', border: 'rgba(255,176,32,.25)', bg: 'rgba(255,176,32,.06)' },
+  bad: { color: '#FF6B6B', border: 'rgba(255,59,59,.35)', bg: 'rgba(255,59,59,.08)' }
+}
 
 export function TitleBar(): React.JSX.Element {
-  const output = useStore((s) => s.config.output)
+  const config = useStore((s) => s.config)
   const devices = useStore((s) => s.devices)
+  const status = useStore((s) => s.audioStatus)
   const setSettingsOpen = useStore((s) => s.setSettingsOpen)
 
-  const cable = devices.outputs.find((d) => d.deviceId === output.cableDeviceId)
-  const routed = Boolean(cable)
+  const cable = cableHealth(config, devices, status)
+  const [tone, text] =
+    cable.state === 'ok'
+      ? (['ok', `● routed to ${cable.device?.label.slice(0, 28) ?? 'cable'}`] as const)
+      : cable.state === 'unset'
+        ? (['warn', '● no output device set'] as const)
+        : cable.state === 'missing'
+          ? (['bad', '● output disconnected'] as const)
+          : (['bad', '● output failed — open Settings'] as const)
+  const pill = PILL[tone]
 
   return (
     <header className="drag-region flex h-10 items-center gap-3 border-b border-line bg-surface px-3.5">
@@ -20,13 +36,10 @@ export function TitleBar(): React.JSX.Element {
 
       <span
         className="rounded-full border px-2 py-[3px] font-mono text-[10px] tracking-wide"
-        style={{
-          color: routed ? 'var(--neon-lime)' : 'var(--neon-amber)',
-          borderColor: routed ? 'rgba(182,255,0,.25)' : 'rgba(255,176,32,.25)',
-          background: routed ? 'rgba(182,255,0,.06)' : 'rgba(255,176,32,.06)'
-        }}
+        style={{ color: pill.color, borderColor: pill.border, background: pill.bg }}
+        title={cable.problem ?? undefined}
       >
-        {routed ? `● routed to ${cable?.label.slice(0, 28)}` : '● no output device set'}
+        {text}
       </span>
 
       <div className="no-drag ml-auto flex items-center gap-1">

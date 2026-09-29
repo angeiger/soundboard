@@ -13,7 +13,7 @@ export const NEON_COLORS: NeonColor[] = [
 
 export const PLAY_MODES: PlayMode[] = ['restart', 'overlap', 'toggle']
 
-export const CONFIG_VERSION = 2
+export const CONFIG_VERSION = 3
 
 export const DEFAULT_BANK_ID = 'bank-default'
 

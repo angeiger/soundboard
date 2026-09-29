@@ -1,60 +1,29 @@
 import { useStore } from '@/state/store'
-import type { AudioDevice } from '@shared/types'
 import { positionToGain, gainToDisplay, formatGainDb } from '@/audio/volume'
+import { cableHealth, monitorHealth, micHealth, type Health } from '@/state/health'
+import { DevicePicker } from './DevicePicker'
 
 const VB_CABLE_URL = 'https://vb-audio.com/Cable/'
 
-function DevicePicker({
-  devices,
-  value,
-  onChange,
-  placeholder
-}: {
-  devices: AudioDevice[]
-  value: string | null
-  onChange: (deviceId: string) => void
-  placeholder: string
-}): React.JSX.Element {
-  const selected = devices.find((d) => d.deviceId === value)
-  return (
-    <div className="flex flex-col gap-1.5">
-      <select
-        className="field cursor-pointer"
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value="" disabled>
-          {placeholder}
-        </option>
-        {devices.map((d) => (
-          <option key={d.deviceId} value={d.deviceId}>
-            {d.label}
-          </option>
-        ))}
-      </select>
-
-      {selected?.isHandsFree && (
-        <p className="text-[11px] text-[var(--neon-amber)]">
-          This is the Bluetooth hands-free endpoint — output drops to mono telephone
-          quality. Pick the stereo entry instead.
-        </p>
-      )}
-    </div>
-  )
-}
+/** Only a real failure is worth a red line under the picker; unset has its own placeholder. */
+const problemOf = (h: Health): string | null =>
+  h.state === 'failed' || h.state === 'missing' ? h.problem : null
 
 export function SettingsPanel(): React.JSX.Element {
-  const output = useStore((s) => s.config.output)
-  const mic = useStore((s) => s.config.mic)
+  const config = useStore((s) => s.config)
+  const output = config.output
+  const mic = config.mic
   const devices = useStore((s) => s.devices)
+  const status = useStore((s) => s.audioStatus)
   const setOutput = useStore((s) => s.setOutput)
   const setMic = useStore((s) => s.setMic)
-  const bankHotkeys = useStore((s) => s.config.bankHotkeysEnabled)
+  const bankHotkeys = config.bankHotkeysEnabled
   const setBankHotkeys = useStore((s) => s.setBankHotkeys)
   const setSettingsOpen = useStore((s) => s.setSettingsOpen)
+  const openSetup = useStore((s) => s.openSetup)
 
   const hasCable = devices.outputs.some((d) => d.isVirtualCable)
-  const micDevice = devices.inputs.find((d) => d.deviceId === mic.deviceId)
+  const gateAvailable = status?.gateAvailable ?? true
 
   return (
     <div
@@ -75,6 +44,15 @@ export function SettingsPanel(): React.JSX.Element {
             ✕
           </button>
         </div>
+
+        <section className="mb-5 flex items-center gap-3 rounded-lg border border-line bg-bg px-3.5 py-2.5">
+          <p className="text-[12px] leading-relaxed text-txt-dim">
+            New headset, reinstalled VB-CABLE, or friends cannot hear you?
+          </p>
+          <button type="button" className="btn-outline ml-auto shrink-0 px-3" onClick={openSetup}>
+            Run setup again
+          </button>
+        </section>
 
         {!hasCable && (
           <div className="mb-5 rounded-lg border border-[rgba(255,176,32,.3)] bg-[rgba(255,176,32,.06)] p-3.5">
@@ -99,10 +77,12 @@ export function SettingsPanel(): React.JSX.Element {
         <section className="mb-5">
           <div className="label mb-2">Output to Discord</div>
           <DevicePicker
+            label="Output to Discord"
             devices={devices.outputs}
             value={output.cableDeviceId}
             onChange={(cableDeviceId) => setOutput({ cableDeviceId })}
             placeholder="Choose your virtual cable…"
+            problem={problemOf(cableHealth(config, devices, status))}
           />
           <p className="mt-1.5 text-[11px] text-txt-faint">
             Set Discord’s input device to the matching “CABLE Output” recording device.
@@ -123,10 +103,12 @@ export function SettingsPanel(): React.JSX.Element {
             </label>
           </div>
           <DevicePicker
+            label="Monitor (your headphones)"
             devices={devices.outputs}
             value={output.monitorDeviceId}
             onChange={(monitorDeviceId) => setOutput({ monitorDeviceId })}
             placeholder="Choose your headphones…"
+            problem={problemOf(monitorHealth(config, devices, status))}
           />
           <div className="mt-2.5">
             <div className="label mb-1.5">
@@ -188,19 +170,13 @@ export function SettingsPanel(): React.JSX.Element {
           </div>
 
           <DevicePicker
+            label="Microphone"
             devices={devices.inputs}
             value={mic.deviceId}
             onChange={(deviceId) => setMic({ deviceId })}
             placeholder="Choose your microphone…"
+            problem={problemOf(micHealth(config, devices, status))}
           />
-
-          {micDevice?.isHandsFree && (
-            <p className="mt-1.5 text-[11px] text-[var(--neon-amber)]">
-              Using a Bluetooth headset mic forces the headset into hands-free mode, which
-              drops everything you hear to mono telephone quality. A separate wired or USB
-              mic keeps the headset in stereo.
-            </p>
-          )}
 
           <p className="mt-2 text-[11px] leading-relaxed text-txt-faint">
             Discord’s own noise suppression, echo cancellation and auto gain must be
@@ -213,11 +189,15 @@ export function SettingsPanel(): React.JSX.Element {
             <label className="flex items-center gap-2.5 text-[12px] text-txt-dim">
               <input
                 type="checkbox"
-                checked={mic.gateEnabled}
+                checked={mic.gateEnabled && gateAvailable}
+                disabled={!gateAvailable}
                 onChange={(e) => setMic({ gateEnabled: e.target.checked })}
                 className="accent-[var(--neon-cyan)]"
               />
               Noise gate
+              {!gateAvailable && (
+                <span className="text-[11px] text-[#FF6B6B]">failed to load — restart Soundboard</span>
+              )}
               <span className="ml-auto font-mono text-[11px] text-txt-faint">
                 {mic.gateThreshold} dB
               </span>
@@ -226,8 +206,9 @@ export function SettingsPanel(): React.JSX.Element {
               type="range"
               min={-80}
               max={-10}
+              aria-label="Noise gate threshold"
               value={mic.gateThreshold}
-              disabled={!mic.gateEnabled}
+              disabled={!mic.gateEnabled || !gateAvailable}
               onChange={(e) => setMic({ gateThreshold: Number(e.target.value) })}
               className="h-[3px] w-full cursor-pointer appearance-none rounded-sm disabled:opacity-40"
               style={{

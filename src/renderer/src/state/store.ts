@@ -2,6 +2,9 @@ import { create } from 'zustand'
 import { engine } from '@/audio/engine'
 import { computePeaks } from '@/audio/peaks'
 import { analyzeLoudness, suggestGain } from '@/audio/loudness'
+import { listDevices } from '@/audio/devices'
+import type { LocalAudioStatus } from '@/audio/target'
+import type { DeviceSnapshot } from './health'
 import {
   defaultConfig,
   NEON_COLORS,
@@ -22,6 +25,11 @@ import type {
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let hotkeyTimer: ReturnType<typeof setTimeout> | null = null
 
+export interface Devices extends DeviceSnapshot {
+  /** False when device names are being withheld, so no cable can be recognised. */
+  labelsAvailable: boolean
+}
+
 interface State {
   config: Config
   loaded: boolean
@@ -30,11 +38,14 @@ interface State {
   playing: Set<string>
   /** hash -> cached waveform peaks. */
   peaks: Record<string, number[]>
-  devices: { inputs: AudioDevice[]; outputs: AudioDevice[] }
+  devices: Devices
+  /** What is failing in the audio path, or null for a target without local devices. */
+  audioStatus: LocalAudioStatus | null
   hotkeyIssues: HotkeyRegistrationResult[]
   /** Pad whose settings drawer is open, or null. */
   editingPadId: string | null
   settingsOpen: boolean
+  setupOpen: boolean
   searchQuery: string
 
   load: () => Promise<void>
@@ -55,10 +66,14 @@ interface State {
   setMic: (patch: Partial<MicSettings>) => void
   setOutput: (patch: Partial<OutputSettings>) => void
   setMaster: (value: number) => void
-  setDevices: (devices: { inputs: AudioDevice[]; outputs: AudioDevice[] }) => void
+  refreshDevices: () => Promise<void>
 
   setEditingPad: (padId: string | null) => void
   setSettingsOpen: (open: boolean) => void
+  openSetup: () => void
+  /** Closes the wizard without finishing it; it opens again on the next launch. */
+  closeSetup: () => void
+  completeSetup: () => void
   setSearchQuery: (query: string) => void
   setBankHotkeys: (enabled: boolean) => void
   resyncHotkeys: () => void
@@ -94,10 +109,12 @@ export const useStore = create<State>((set, get) => ({
   activeBankId: DEFAULT_BANK_ID,
   playing: new Set(),
   peaks: {},
-  devices: { inputs: [], outputs: [] },
+  devices: { inputs: [], outputs: [], loaded: false, labelsAvailable: true },
+  audioStatus: null,
   hotkeyIssues: [],
   editingPadId: null,
   settingsOpen: false,
+  setupOpen: false,
   searchQuery: '',
 
   load: async () => {
@@ -105,10 +122,13 @@ export const useStore = create<State>((set, get) => ({
     set({
       config,
       loaded: true,
-      activeBankId: config.banks[0]?.id ?? DEFAULT_BANK_ID
+      activeBankId: config.banks[0]?.id ?? DEFAULT_BANK_ID,
+      setupOpen: !config.setupCompleted
     })
 
+    engine.onStatusChange(() => set({ audioStatus: engine.status() }))
     await engine.init()
+    set({ audioStatus: engine.status() })
     await engine.setOutput(config.output)
     await engine.setMic(config.mic)
     await engine.setMaster(config.master)
@@ -325,9 +345,41 @@ export const useStore = create<State>((set, get) => ({
     void engine.setMaster(value)
   },
 
-  setDevices: (devices) => set({ devices }),
+  /**
+   * Re-lists devices, and reconnects anything that failed or went missing and
+   * has now come back: a headset re-plugged, a USB mic reconnected, a cable
+   * driver that finished installing. None of those recover on their own.
+   */
+  refreshDevices: async () => {
+    const list = await listDevices()
+    const before = get().devices
+    set({ devices: { ...list, loaded: true } })
+
+    const { config } = get()
+    const status = engine.status()
+    const returned = (was: AudioDevice[], now: AudioDevice[], id: string | null): boolean =>
+      Boolean(id) && !was.some((d) => d.deviceId === id) && now.some((d) => d.deviceId === id)
+
+    if (
+      status?.cableError ||
+      status?.monitorError ||
+      (before.loaded && returned(before.outputs, list.outputs, config.output.cableDeviceId)) ||
+      (before.loaded && returned(before.outputs, list.outputs, config.output.monitorDeviceId))
+    ) {
+      await engine.setOutput(config.output)
+    }
+    if (status?.mic.state === 'failed') await engine.setMic(config.mic)
+  },
+
   setEditingPad: (padId) => set({ editingPadId: padId }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
+  openSetup: () => set({ setupOpen: true, settingsOpen: false, editingPadId: null }),
+  closeSetup: () => set({ setupOpen: false }),
+  completeSetup: () => {
+    const next = { ...get().config, setupCompleted: true }
+    set({ config: next, setupOpen: false })
+    persist(next)
+  },
   setSearchQuery: (query) => set({ searchQuery: query }),
 
   /**
