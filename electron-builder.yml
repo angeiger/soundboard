@@ -14,8 +14,12 @@ files:
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
-  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
-  - '!{tailwind.config.js,postcss.config.js,electron-builder.yml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json,tsconfig.test.json}'
+  - '!{tailwind.config.js,postcss.config.js,electron-builder.yml,vitest.config.ts}'
+  # Development material that was being shipped inside every installer.
+  - '!{docs,test-sounds,.claude}/**'
+  - '!{README.md,RELEASE_NOTES.md}'
+  - '!*.tsbuildinfo'
 win:
   target:
     - target: nsis
