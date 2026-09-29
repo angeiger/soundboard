@@ -20,7 +20,11 @@ win:
   target:
     - target: nsis
       arch: [x64]
-  artifactName: ${productName}-${version}-setup.${ext}
+  # Deliberately version-less. GitHub's /releases/latest/download/<name> link
+  # resolves by exact filename, so putting the version in the name breaks that
+  # link on every release. electron-updater reads the version from latest.yml,
+  # not from the filename.
+  artifactName: ${productName}-setup.${ext}
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
