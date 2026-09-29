@@ -1,4 +1,13 @@
 import { uIOhook, UiohookKey } from 'uiohook-napi'
+import {
+  KEY_TOKENS,
+  MOUSE_TOKENS,
+  buildAccelerator,
+  validateAccelerator,
+  bankAccelerator,
+  type ModifierState,
+  type MouseButton
+} from '@shared/accelerator'
 import type { Pad, HotkeyRegistrationResult } from '@shared/types'
 
 /**
@@ -42,108 +51,106 @@ let started = false
 let suspended = false
 
 /**
- * keycode -> accelerator token. Numpad keys appear twice on purpose: Windows
- * reports a different code depending on NumLock, and a pad bound to Numpad 1
- * must fire either way.
+ * uiohook keycode -> physical key, named by KeyboardEvent.code so this and the
+ * renderer share one vocabulary (src/shared/accelerator.ts).
+ *
+ * Numpad keys appear twice on purpose: Windows reports a different code
+ * depending on NumLock, and a pad bound to Numpad 1 must fire either way.
  */
-const KEYCODE_TO_TOKEN = new Map<number, string>()
-
-function buildKeyTable(): void {
+function buildKeyTable(): Map<number, string> {
   const K = UiohookKey
+  const byName = K as Record<string, number>
+  const table = new Map<number, string>()
 
   for (const letter of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
-    const code = (K as Record<string, number>)[letter]
-    if (code !== undefined) KEYCODE_TO_TOKEN.set(code, letter)
+    if (byName[letter] !== undefined) table.set(byName[letter], `Key${letter}`)
   }
   for (let d = 0; d <= 9; d++) {
-    const code = (K as Record<string, number>)[String(d)]
-    if (code !== undefined) KEYCODE_TO_TOKEN.set(code, String(d))
+    if (byName[String(d)] !== undefined) table.set(byName[String(d)], `Digit${d}`)
   }
   for (let f = 1; f <= 24; f++) {
-    const code = (K as Record<string, number>)[`F${f}`]
-    if (code !== undefined) KEYCODE_TO_TOKEN.set(code, `F${f}`)
+    if (byName[`F${f}`] !== undefined) table.set(byName[`F${f}`], `F${f}`)
   }
 
   // NumLock on, then the NumLock-off equivalent for the same physical key.
   const numpad: [number, number | null, string][] = [
-    [K.Numpad0, K.NumpadInsert, 'num0'],
-    [K.Numpad1, K.NumpadEnd, 'num1'],
-    [K.Numpad2, K.NumpadArrowDown, 'num2'],
-    [K.Numpad3, K.NumpadPageDown, 'num3'],
-    [K.Numpad4, K.NumpadArrowLeft, 'num4'],
-    [K.Numpad5, null, 'num5'],
-    [K.Numpad6, K.NumpadArrowRight, 'num6'],
-    [K.Numpad7, K.NumpadHome, 'num7'],
-    [K.Numpad8, K.NumpadArrowUp, 'num8'],
-    [K.Numpad9, K.NumpadPageUp, 'num9'],
-    [K.NumpadDecimal, K.NumpadDelete, 'numdec']
+    [K.Numpad0, K.NumpadInsert, 'Numpad0'],
+    [K.Numpad1, K.NumpadEnd, 'Numpad1'],
+    [K.Numpad2, K.NumpadArrowDown, 'Numpad2'],
+    [K.Numpad3, K.NumpadPageDown, 'Numpad3'],
+    [K.Numpad4, K.NumpadArrowLeft, 'Numpad4'],
+    [K.Numpad5, null, 'Numpad5'],
+    [K.Numpad6, K.NumpadArrowRight, 'Numpad6'],
+    [K.Numpad7, K.NumpadHome, 'Numpad7'],
+    [K.Numpad8, K.NumpadArrowUp, 'Numpad8'],
+    [K.Numpad9, K.NumpadPageUp, 'Numpad9'],
+    [K.NumpadDecimal, K.NumpadDelete, 'NumpadDecimal']
   ]
-  for (const [on, off, token] of numpad) {
-    KEYCODE_TO_TOKEN.set(on, token)
-    if (off !== null) KEYCODE_TO_TOKEN.set(off, token)
+  for (const [on, off, code] of numpad) {
+    table.set(on, code)
+    if (off !== null) table.set(off, code)
   }
 
-  const rest: [number, string][] = [
-    [K.NumpadAdd, 'numadd'],
-    [K.NumpadSubtract, 'numsub'],
-    [K.NumpadMultiply, 'nummult'],
-    [K.NumpadDivide, 'numdiv'],
-    [K.NumpadEnter, 'Enter'],
-    [K.Space, 'Space'],
-    [K.Enter, 'Return'],
-    [K.Backspace, 'Backspace'],
-    [K.Tab, 'Tab'],
-    [K.Escape, 'Escape'],
-    [K.ArrowUp, 'Up'],
-    [K.ArrowDown, 'Down'],
-    [K.ArrowLeft, 'Left'],
-    [K.ArrowRight, 'Right'],
-    [K.Home, 'Home'],
-    [K.End, 'End'],
-    [K.PageUp, 'PageUp'],
-    [K.PageDown, 'PageDown'],
-    [K.Insert, 'Insert'],
-    [K.Delete, 'Delete'],
-    [K.Minus, '-'],
-    [K.Equal, '='],
-    [K.BracketLeft, '['],
-    [K.BracketRight, ']'],
-    [K.Backslash, '\\'],
-    [K.Semicolon, ';'],
-    [K.Quote, "'"],
-    [K.Comma, ','],
-    [K.Period, '.'],
-    [K.Slash, '/'],
-    [K.Backquote, '`']
+  // Everything else has the same name in both vocabularies.
+  const sameName = [
+    'NumpadAdd',
+    'NumpadSubtract',
+    'NumpadMultiply',
+    'NumpadDivide',
+    'NumpadEnter',
+    'Space',
+    'Enter',
+    'Backspace',
+    'Tab',
+    'Escape',
+    'ArrowUp',
+    'ArrowDown',
+    'ArrowLeft',
+    'ArrowRight',
+    'Home',
+    'End',
+    'PageUp',
+    'PageDown',
+    'Insert',
+    'Delete',
+    'Minus',
+    'Equal',
+    'BracketLeft',
+    'BracketRight',
+    'Backslash',
+    'Semicolon',
+    'Quote',
+    'Comma',
+    'Period',
+    'Slash',
+    'Backquote'
   ]
-  for (const [code, token] of rest) KEYCODE_TO_TOKEN.set(code, token)
+  for (const name of sameName) {
+    if (byName[name] !== undefined) table.set(byName[name], name)
+  }
+
+  return table
 }
 
-buildKeyTable()
+/** uiohook keycode -> physical key (KeyboardEvent.code). Exported for tests. */
+export const KEYCODE_TO_CODE: ReadonlyMap<number, string> = buildKeyTable()
 
-/** Mouse buttons worth binding. Left and right are deliberately absent. */
-const MOUSE_TOKENS: Record<number, string> = {
-  3: 'Mouse3',
-  4: 'Mouse4',
-  5: 'Mouse5'
+/** uiohook numbers mouse buttons 1 left, 2 right, 3 middle, 4 back, 5 forward. */
+export const UIOHOOK_MOUSE_BUTTONS: Readonly<Record<number, MouseButton>> = {
+  3: 'middle',
+  4: 'back',
+  5: 'forward'
 }
 
-interface ModifierState {
-  ctrlKey: boolean
-  altKey: boolean
-  shiftKey: boolean
-  metaKey: boolean
+export function keyEventAccelerator(e: ModifierState & { keycode: number }): string | null {
+  const code = KEYCODE_TO_CODE.get(e.keycode)
+  const token = code ? KEY_TOKENS.get(code) : undefined
+  return token ? buildAccelerator(e, token) : null
 }
 
-/** Must match captureHotkey() in the renderer exactly, order included. */
-function accelerator(mods: ModifierState, token: string): string {
-  const parts: string[] = []
-  if (mods.ctrlKey) parts.push('Control')
-  if (mods.altKey) parts.push('Alt')
-  if (mods.shiftKey) parts.push('Shift')
-  if (mods.metaKey) parts.push('Super')
-  parts.push(token)
-  return parts.join('+')
+export function mouseEventAccelerator(e: ModifierState & { button: unknown }): string | null {
+  const button = UIOHOOK_MOUSE_BUTTONS[e.button as number]
+  return button ? buildAccelerator(e, MOUSE_TOKENS[button]) : null
 }
 
 function dispatch(accel: string): void {
@@ -178,15 +185,13 @@ export function startHook(): { ok: boolean; error?: string } {
 
   try {
     uIOhook.on('keydown', (e) => {
-      const token = KEYCODE_TO_TOKEN.get(e.keycode)
-      if (!token) return
-      dispatch(accelerator(e, token))
+      const accel = keyEventAccelerator(e)
+      if (accel) dispatch(accel)
     })
 
     uIOhook.on('mousedown', (e) => {
-      const token = MOUSE_TOKENS[e.button as number]
-      if (!token) return
-      dispatch(accelerator(e, token))
+      const accel = mouseEventAccelerator(e)
+      if (accel) dispatch(accel)
     })
 
     uIOhook.start()
@@ -205,20 +210,6 @@ export function stopHook(): void {
     /* shutting down anyway */
   }
   started = false
-}
-
-/**
- * F13-F24 and the extra mouse buttons are safe without a modifier: no normal
- * keyboard or typing produces them, so they cannot fire a pad by accident.
- */
-const MODIFIERLESS_SAFE = /^(F(1[3-9]|2[0-4])|Mouse[345])$/i
-
-export function validateAccelerator(accel: string): 'ok' | 'invalid' {
-  if (!accel.trim()) return 'invalid'
-  const parts = accel.split('+')
-  const key = parts[parts.length - 1]
-  if (parts.length === 1 && !MODIFIERLESS_SAFE.test(key)) return 'invalid'
-  return 'ok'
 }
 
 /**
@@ -262,7 +253,7 @@ export function syncPadHotkeys(
   }
 
   if (bankHotkeysEnabled) {
-    for (let i = 1; i <= 9; i++) bankAccelerators.set(`Control+Alt+${i}`, i - 1)
+    for (let i = 0; i < 9; i++) bankAccelerators.set(bankAccelerator(i), i)
   }
 
   return results

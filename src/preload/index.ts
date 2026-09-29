@@ -37,8 +37,6 @@ const api = {
       bankHotkeysEnabled: boolean
     ): Promise<HotkeyRegistrationResult[]> =>
       ipcRenderer.invoke('hotkeys:sync', pads, panicHotkey, bankHotkeysEnabled),
-    validate: (accelerator: string): Promise<'ok' | 'invalid'> =>
-      ipcRenderer.invoke('hotkeys:validate', accelerator),
     suspend: (): Promise<void> => ipcRenderer.invoke('hotkeys:suspend'),
     resume: (): Promise<void> => ipcRenderer.invoke('hotkeys:resume'),
     hookError: (): Promise<string | null> => ipcRenderer.invoke('hotkeys:hookError')

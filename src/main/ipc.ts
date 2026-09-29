@@ -1,7 +1,7 @@
 import { ipcMain, dialog, BrowserWindow, shell } from 'electron'
 import { loadConfig, saveConfig } from './store'
 import * as library from './library'
-import { syncPadHotkeys, suspend, resume, validateAccelerator } from './hotkeys'
+import { syncPadHotkeys, suspend, resume } from './hotkeys'
 import { writePack, readPack } from './soundpack'
 import type { Config, Pad, PackManifest } from '@shared/types'
 
@@ -64,10 +64,6 @@ export function registerIpc(
     'hotkeys:sync',
     (_e, pads: Pad[], panicHotkey: string | null, bankHotkeysEnabled: boolean) =>
       syncPadHotkeys(pads, panicHotkey, bankHotkeysEnabled)
-  )
-
-  ipcMain.handle('hotkeys:validate', (_e, accelerator: string) =>
-    validateAccelerator(accelerator)
   )
 
   /**
