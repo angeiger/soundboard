@@ -112,17 +112,7 @@ export function PadEditor({ padId }: { padId: string }): React.JSX.Element | nul
 
         <div className="mt-4 grid grid-cols-2 gap-4">
           <div>
-            <div className="label mb-1.5 flex items-center justify-between">
-              <span>Volume · {Math.round(pad.gain * 100)}%</span>
-              <button
-                type="button"
-                className="normal-case tracking-normal text-txt-faint transition-colors hover:text-txt-dim"
-                onClick={() => void normalizePad(pad.id)}
-                title="Measure this clip and match it to speaking level"
-              >
-                match level
-              </button>
-            </div>
+            <div className="label mb-1.5">Volume · {Math.round(pad.gain * 100)}%</div>
             <input
               type="range"
               min={0}
@@ -135,6 +125,14 @@ export function PadEditor({ padId }: { padId: string }): React.JSX.Element | nul
                 background: `linear-gradient(to right, ${accent} ${(pad.gain / 2) * 100}%, #22222E ${(pad.gain / 2) * 100}%)`
               }}
             />
+            <button
+              type="button"
+              className="btn-outline mt-3 w-full"
+              onClick={() => void normalizePad(pad.id)}
+              title="Measure this clip and set its volume to sit just under a speaking voice"
+            >
+              Match to voice level
+            </button>
           </div>
 
           <div>

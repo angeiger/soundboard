@@ -1,6 +1,6 @@
 {
   "name": "soundboard",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Neon soundboard for Discord voice chat",
   "main": "./out/main/index.js",
   "author": "andreas",

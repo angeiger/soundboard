@@ -87,7 +87,7 @@ export function BottomBar(): React.JSX.Element {
           title={`Master level — ${formatGainDb(master)}`}
         />
         <span
-          className="w-12 font-mono text-[11px] tabular-nums text-txt"
+          className="w-[62px] whitespace-nowrap text-right font-mono text-[11px] tabular-nums text-txt"
           title={`${masterPos} of 100`}
         >
           {formatGainDb(master)}
