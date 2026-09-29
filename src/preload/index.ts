@@ -3,7 +3,8 @@ import type {
   Config,
   Pad,
   HotkeyRegistrationResult,
-  PackManifest
+  PackManifest,
+  UpdateStatus
 } from '@shared/types'
 
 export interface ImportedSound {
@@ -73,7 +74,20 @@ const api = {
     openExternal: (url: string): Promise<void> =>
       ipcRenderer.invoke('shell:openExternal', url)
   },
+  app: {
+    version: (): Promise<string> => ipcRenderer.invoke('app:version')
+  },
+  updater: {
+    status: (): Promise<UpdateStatus> => ipcRenderer.invoke('updater:status'),
+    check: (): Promise<UpdateStatus> => ipcRenderer.invoke('updater:check'),
+    install: (): Promise<void> => ipcRenderer.invoke('updater:install')
+  },
   on: {
+    updateStatus: (cb: (status: UpdateStatus) => void): (() => void) => {
+      const h = (_e: unknown, status: UpdateStatus): void => cb(status)
+      ipcRenderer.on('updater:status', h)
+      return () => ipcRenderer.off('updater:status', h)
+    },
     padTrigger: (cb: (padId: string) => void): (() => void) => {
       const h = (_e: unknown, padId: string): void => cb(padId)
       ipcRenderer.on('trigger:pad', h)

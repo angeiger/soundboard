@@ -19,10 +19,12 @@ import type {
   MicSettings,
   OutputSettings,
   AudioDevice,
-  HotkeyRegistrationResult
+  HotkeyRegistrationResult,
+  UpdateStatus
 } from '@shared/types'
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+let pendingSave: Config | null = null
 let hotkeyTimer: ReturnType<typeof setTimeout> | null = null
 
 export interface Devices extends DeviceSnapshot {
@@ -47,6 +49,12 @@ interface State {
   settingsOpen: boolean
   setupOpen: boolean
   searchQuery: string
+  appVersion: string
+  update: UpdateStatus
+  /** The downloaded version or error the banner was dismissed for. */
+  updateDismissed: string | null
+  /** Why the last settings save failed; changes are lost on restart until it works. */
+  saveError: string | null
 
   load: () => Promise<void>
   setActiveBank: (bankId: string) => void
@@ -74,6 +82,10 @@ interface State {
   /** Closes the wizard without finishing it; it opens again on the next launch. */
   closeSetup: () => void
   completeSetup: () => void
+  checkForUpdates: () => Promise<void>
+  /** Saves anything pending, then restarts into the downloaded update. */
+  installUpdate: () => Promise<void>
+  dismissUpdate: () => void
   setSearchQuery: (query: string) => void
   setBankHotkeys: (enabled: boolean) => void
   resyncHotkeys: () => void
@@ -83,8 +95,28 @@ interface State {
 }
 
 function persist(config: Config): void {
+  pendingSave = config
   if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => void window.api.config.save(config), 250)
+  saveTimer = setTimeout(() => void flushSave(), 250)
+}
+
+/**
+ * Writes the pending config now. A failed save used to vanish as an unhandled
+ * rejection, leaving every change to be lost at the next restart without a
+ * word, so the reason is kept for the UI until a save succeeds.
+ */
+async function flushSave(): Promise<void> {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = null
+  const config = pendingSave
+  pendingSave = null
+  if (!config) return
+  try {
+    await window.api.config.save(config)
+    if (useStore.getState().saveError) useStore.setState({ saveError: null })
+  } catch (err) {
+    useStore.setState({ saveError: (err as Error).message || 'unknown error' })
+  }
 }
 
 /**
@@ -116,6 +148,10 @@ export const useStore = create<State>((set, get) => ({
   settingsOpen: false,
   setupOpen: false,
   searchQuery: '',
+  appVersion: '',
+  update: { state: 'idle' },
+  updateDismissed: null,
+  saveError: null,
 
   load: async () => {
     const config = await window.api.config.get()
@@ -125,6 +161,13 @@ export const useStore = create<State>((set, get) => ({
       activeBankId: config.banks[0]?.id ?? DEFAULT_BANK_ID,
       setupOpen: !config.setupCompleted
     })
+
+    window.api.on.updateStatus((update) => set({ update }))
+    const [appVersion, update] = await Promise.all([
+      window.api.app.version(),
+      window.api.updater.status()
+    ])
+    set({ appVersion, update })
 
     engine.onStatusChange(() => set({ audioStatus: engine.status() }))
     await engine.init()
@@ -379,6 +422,21 @@ export const useStore = create<State>((set, get) => ({
     const next = { ...get().config, setupCompleted: true }
     set({ config: next, setupOpen: false })
     persist(next)
+  },
+
+  checkForUpdates: async () => {
+    set({ updateDismissed: null, update: await window.api.updater.check() })
+  },
+
+  installUpdate: async () => {
+    await flushSave()
+    await window.api.updater.install()
+  },
+
+  dismissUpdate: () => {
+    const u = get().update
+    if (u.state === 'downloaded') set({ updateDismissed: u.version })
+    if (u.state === 'error') set({ updateDismissed: u.detail })
   },
   setSearchQuery: (query) => set({ searchQuery: query }),
 

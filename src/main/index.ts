@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { ensureDirs } from './paths'
 import { registerIpc } from './ipc'
 import { setHandlers, unregisterAll, startHook, stopHook } from './hotkeys'
+import { initUpdater } from './updater'
 
 let mainWindow: BrowserWindow | null = null
 let hookError: string | null = null
@@ -89,6 +90,7 @@ if (!gotLock) {
 
     registerIpc(getWindow, () => hookError)
     createWindow()
+    initUpdater(getWindow)
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()

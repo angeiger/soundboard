@@ -127,6 +127,29 @@ export interface PackManifest {
   pads: PackPad[]
 }
 
+/** Where the auto-updater is, as the main process reports it to the renderer. */
+export type UpdateStatus =
+  /** Running unpackaged (dev), where electron-updater cannot work. */
+  | { state: 'unsupported' }
+  | { state: 'idle' }
+  | { state: 'checking' }
+  | { state: 'up-to-date'; checkedAt: number }
+  | {
+      state: 'downloading'
+      version: string
+      /** 0..100 */
+      percent: number
+      bytesPerSecond: number
+    }
+  | { state: 'downloaded'; version: string }
+  | {
+      state: 'error'
+      /** What failed, in words; the raw error follows for support. */
+      message: string
+      detail: string
+      during: 'check' | 'download' | 'install'
+    }
+
 export interface HotkeyRegistrationResult {
   padId: string
   accelerator: string

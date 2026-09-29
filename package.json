@@ -1,6 +1,6 @@
 {
   "name": "soundboard",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Neon soundboard for Discord voice chat",
   "main": "./out/main/index.js",
   "author": "andreas",
@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@electron-toolkit/utils": "^4.0.0",
+    "electron-updater": "~6.3.9",
     "uiohook-napi": "^1.5.5",
     "yauzl": "^3.2.0",
     "yazl": "^3.3.1"

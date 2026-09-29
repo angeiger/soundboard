@@ -8,6 +8,7 @@ import { BottomBar } from './components/BottomBar'
 import { PadEditor } from './components/PadEditor'
 import { SettingsPanel } from './components/SettingsPanel'
 import { SetupWizard } from './components/SetupWizard'
+import { UpdateBanner } from './components/UpdateBanner'
 import type { HotkeyRegistrationResult, Pad } from '@shared/types'
 
 /** Names the pads involved, so the banner says what to fix rather than just how many. */
@@ -36,6 +37,7 @@ export default function App(): React.JSX.Element {
   const setupOpen = useStore((s) => s.setupOpen)
   const hotkeyIssues = useStore((s) => s.hotkeyIssues)
   const pads = useStore((s) => s.config.pads)
+  const saveError = useStore((s) => s.saveError)
   const [hookError, setHookError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -86,6 +88,17 @@ export default function App(): React.JSX.Element {
   return (
     <div className="flex h-full flex-col bg-bg">
       <TitleBar />
+      <UpdateBanner />
+
+      {saveError && (
+        <div
+          role="alert"
+          className="border-b border-[rgba(255,59,59,.3)] bg-[rgba(255,59,59,.07)] px-4 py-2 text-[12px] text-[#FF6B6B]"
+        >
+          Settings could not be saved, so changes will be lost when Soundboard closes.{' '}
+          <span className="font-mono text-[10.5px] text-txt-faint">{saveError}</span>
+        </div>
+      )}
 
       {hookError && (
         <div className="border-b border-[rgba(255,59,59,.3)] bg-[rgba(255,59,59,.07)] px-4 py-2.5">

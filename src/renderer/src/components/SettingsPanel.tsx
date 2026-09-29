@@ -9,6 +9,84 @@ const VB_CABLE_URL = 'https://vb-audio.com/Cable/'
 const problemOf = (h: Health): string | null =>
   h.state === 'failed' || h.state === 'missing' ? h.problem : null
 
+/**
+ * Version and update status. Without a version on screen anywhere there was
+ * no way to tell which of four hand-copied builds someone was running.
+ */
+function AboutSection(): React.JSX.Element {
+  const version = useStore((s) => s.appVersion)
+  const update = useStore((s) => s.update)
+  const checkForUpdates = useStore((s) => s.checkForUpdates)
+  const installUpdate = useStore((s) => s.installUpdate)
+
+  const line = ((): { text: string; tone: string } => {
+    switch (update.state) {
+      case 'unsupported':
+        return { text: 'Updates only work in the installed app.', tone: 'text-txt-faint' }
+      case 'idle':
+        return { text: 'Checks for updates shortly after it starts.', tone: 'text-txt-faint' }
+      case 'checking':
+        return { text: 'Checking for updates…', tone: 'text-txt-dim' }
+      case 'up-to-date': {
+        const at = new Date(update.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        return { text: `Up to date · checked ${at}`, tone: 'text-[var(--neon-lime)]' }
+      }
+      case 'downloading':
+        return {
+          text: `Downloading ${update.version} · ${Math.floor(update.percent)}%`,
+          tone: 'text-[var(--neon-cyan)]'
+        }
+      case 'downloaded':
+        return { text: `${update.version} is downloaded and ready.`, tone: 'text-[var(--neon-lime)]' }
+      case 'error':
+        return { text: update.message, tone: 'text-[var(--neon-amber)]' }
+    }
+  })()
+
+  const busy = update.state === 'checking' || update.state === 'downloading'
+
+  return (
+    <section className="border-t border-line pt-5">
+      <div className="label mb-2">About</div>
+      <div className="flex items-center gap-3">
+        <div className="min-w-0">
+          <p className="text-[13px] text-txt">Soundboard {version}</p>
+          <p className={`mt-0.5 text-[11.5px] ${line.tone}`}>{line.text}</p>
+          {update.state === 'error' && (
+            <p className="mt-0.5 break-all font-mono text-[10.5px] text-txt-faint">{update.detail}</p>
+          )}
+        </div>
+        {update.state === 'downloaded' ? (
+          <button
+            type="button"
+            className="ml-auto shrink-0 rounded-lg border border-[rgba(182,255,0,.4)] bg-[rgba(182,255,0,.08)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--neon-lime)] transition-colors hover:bg-[rgba(182,255,0,.15)]"
+            onClick={() => void installUpdate()}
+          >
+            Restart to update
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="btn-outline ml-auto shrink-0 px-3"
+            disabled={busy || update.state === 'unsupported'}
+            onClick={() => void checkForUpdates()}
+          >
+            Check for updates
+          </button>
+        )}
+      </div>
+      {update.state === 'downloading' && (
+        <div className="mt-2.5 h-[3px] overflow-hidden rounded-sm bg-line">
+          <div
+            className="h-full bg-[var(--neon-cyan)] transition-[width] duration-300"
+            style={{ width: `${update.percent}%` }}
+          />
+        </div>
+      )}
+    </section>
+  )
+}
+
 export function SettingsPanel(): React.JSX.Element {
   const config = useStore((s) => s.config)
   const output = config.output
@@ -240,6 +318,8 @@ export function SettingsPanel(): React.JSX.Element {
             </label>
           </div>
         </section>
+
+        <AboutSection />
       </div>
     </div>
   )

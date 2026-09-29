@@ -1,8 +1,9 @@
-import { ipcMain, dialog, BrowserWindow, shell } from 'electron'
+import { app, ipcMain, dialog, BrowserWindow, shell } from 'electron'
 import { loadConfig, saveConfig } from './store'
 import * as library from './library'
 import { syncPadHotkeys, suspend, resume } from './hotkeys'
 import { writePack, readPack } from './soundpack'
+import { checkForUpdates, currentStatus, installUpdate } from './updater'
 import type { Config, Pad, PackManifest } from '@shared/types'
 
 export function registerIpc(
@@ -139,4 +140,9 @@ export function registerIpc(
   ipcMain.handle('window:close', () => getWindow()?.close())
 
   ipcMain.handle('shell:openExternal', (_e, url: string) => shell.openExternal(url))
+
+  ipcMain.handle('app:version', () => app.getVersion())
+  ipcMain.handle('updater:status', () => currentStatus())
+  ipcMain.handle('updater:check', () => checkForUpdates())
+  ipcMain.handle('updater:install', () => installUpdate())
 }
