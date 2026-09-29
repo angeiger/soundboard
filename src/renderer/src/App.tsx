@@ -7,7 +7,6 @@ import { PadGrid } from './components/PadGrid'
 import { BottomBar } from './components/BottomBar'
 import { PadEditor } from './components/PadEditor'
 import { SettingsPanel } from './components/SettingsPanel'
-import { ElevationBanner } from './components/ElevationBanner'
 
 export default function App(): React.JSX.Element {
   const load = useStore((s) => s.load)
@@ -64,8 +63,6 @@ export default function App(): React.JSX.Element {
   return (
     <div className="flex h-full flex-col bg-bg">
       <TitleBar />
-
-      <ElevationBanner />
 
       {hookError && (
         <div className="border-b border-[rgba(255,59,59,.3)] bg-[rgba(255,59,59,.07)] px-4 py-2.5">

@@ -4,18 +4,33 @@ A neon-dark soundboard for Discord voice chat. Windows only.
 
 ## Why it's built this way
 
-**Global hotkeys use `RegisterHotKey`, never a low-level keyboard hook.** Electron's
-`globalShortcut` wraps the Win32 `RegisterHotKey` API, which asks the OS to deliver a
-combo to our window — it installs no hook, injects no DLL and never touches another
-process. Riot's Vanguard (League of Legends, Valorant) is hostile to
-`SetWindowsHookEx`-style keyboard hooks, which is how most soundboards do this.
+**Global hotkeys use a low-level keyboard hook, not `RegisterHotKey`.** This was
+originally the other way round, on the theory that Riot's Vanguard is hostile to
+`SetWindowsHookEx`-style hooks. That turned out to be both wrong and fatal.
 
-Do not replace `src/main/hotkeys.ts` with `uiohook-napi`, `iohook`, or
-`node-global-key-listener`. The trade-offs we accept in exchange:
+A game can register raw input with `RIDEV_NOHOTKEYS`, which suppresses *every*
+`RegisterHotKey` binding in the system while that window holds the foreground. League
+does this. The result was pads that fired on the desktop, in the League client and
+while alt-tabbed, but never inside a match — identical across all three display modes,
+and unchanged by running elevated.
 
-- keyboard only — mouse4/mouse5 cannot be bound
-- combos need a modifier (F13–F24 are exempt; no real keyboard produces them)
-- a bound combo is consumed and never reaches the focused game
+A low-level hook sits below the raw-input layer and is unaffected. It is also fine with
+Vanguard in practice: Discord's push-to-talk uses the same mechanism and works in-game,
+as do OBS and most streaming tools. Unlike DLL injection, the callback runs in our
+process and never touches the game's — which is what anti-cheat actually objects to.
+
+Consequences of the hook, all deliberate:
+
+- keystrokes are **not** consumed, so a binding is never stolen from other apps. The
+  UI still requires a modifier, because a bare key would now fire a pad while you type
+  in Discord. F13–F24 and mouse buttons 3–5 are exempt.
+- mouse buttons are bindable, which `RegisterHotKey` could not do
+- numpad keys are mapped from both their NumLock-on and NumLock-off scancodes, since
+  Windows reports different codes for the same physical key
+- Shift as a *sole* modifier lags a beat and is unreliable; nothing defaults to it
+
+Elevation is **not** required. An earlier version warned that it was, which was a
+misdiagnosis of the above.
 
 **Mic cleanup happens here, not in Discord.** Discord applies noise suppression, echo
 cancellation and auto gain to whatever arrives on the input device, and cannot tell your

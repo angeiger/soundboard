@@ -25,15 +25,20 @@ In Discord → Voice & Video: input device **`CABLE Output`** (not Input), and t
 processing cannot tell a voice from a sound effect and will eat your clips —
 Soundboard cleans up your microphone itself instead.
 
-**4. If you play League**, right-click the shortcut → Properties → Compatibility →
-**Run this program as an administrator**. League runs elevated, and Windows won't
-deliver hotkeys from a normal-privilege app to an elevated window.
+That's it — no administrator rights needed, and nothing to configure per game.
 
 ## Using it
 
 Drag audio onto the grid to make a pad. Right-click a pad to set its hotkey, trim
 the clip, change volume, colour or playback mode. Pads default to
 `Ctrl+Alt+Numpad 1-9`, which nothing else uses.
+
+You can bind a mouse thumb button instead — click the hotkey field, then press the
+button. Far easier to reach mid-fight than a numpad combo.
+
+Hotkeys work inside games, including League. They are not swallowed by the game, so
+whatever you bind still reaches it as well — worth remembering if you rebind to
+something League uses.
 
 **Panic** stops every playing sound at once. You will need it.
 
