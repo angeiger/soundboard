@@ -48,12 +48,18 @@ export default function App(): React.JSX.Element {
     void window.api.hotkeys.hookError().then(setHookError)
   }, [])
 
-  // The cable is recognised by name, so make sure labels are available before
-  // the first enumeration. Every later change re-lists and reconnects.
+  // The cable is recognised by name. Electron hands out device names without
+  // any permission, so the throwaway mic stream that forces them is only a
+  // fallback for when they arrive blank -- opening the mic on every launch lit
+  // Windows' microphone indicator even with passthrough switched off. Every
+  // later change re-lists and reconnects.
   useEffect(() => {
     void (async () => {
-      await primeDevicePermissions()
       await refreshDevices()
+      if (!useStore.getState().devices.labelsAvailable) {
+        await primeDevicePermissions()
+        await refreshDevices()
+      }
     })()
     return onDeviceChange(() => void refreshDevices())
   }, [refreshDevices])

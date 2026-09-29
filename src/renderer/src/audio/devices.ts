@@ -30,9 +30,9 @@ export function classify(d: Pick<MediaDeviceInfo, 'deviceId' | 'kind' | 'label'>
 
 /**
  * Chromium hides device labels from a page without microphone permission.
- * Electron grants that by default, so labels normally arrive regardless; this
- * throwaway stream is the fallback if anything ever withholds them, since the
- * cable can only be recognised by name.
+ * Electron grants that by default, so labels normally arrive regardless and
+ * this is only called when they do not: it opens the default mic for an
+ * instant, which Windows shows as microphone use.
  */
 export async function primeDevicePermissions(): Promise<boolean> {
   try {
