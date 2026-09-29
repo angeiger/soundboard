@@ -43,7 +43,7 @@ export function Sidebar(): React.JSX.Element {
             className={`flex items-center gap-2.5 rounded-lg border px-2.5 py-2 text-[13px] transition-colors ${
               active
                 ? 'border-[rgba(0,240,255,.3)] bg-[rgba(0,240,255,.07)] text-[var(--neon-cyan)]'
-                : 'border-transparent text-txt-dim hover:bg-surface-2 hover:text-txt'
+                : 'border-transparent text-txt-dim hover:bg-surface-2 hover:text-[var(--neon-cyan)]'
             }`}
           >
             <span className="truncate">{bank.name}</span>
@@ -78,7 +78,7 @@ export function Sidebar(): React.JSX.Element {
         <button
           type="button"
           onClick={() => setAdding(true)}
-          className="mt-1 rounded-lg border border-dashed border-line px-2.5 py-2 text-center text-[12px] text-txt-faint transition-colors hover:border-line-hi hover:text-txt-dim"
+          className="btn-outline mt-1 border-dashed text-center"
         >
           + New bank
         </button>
@@ -92,7 +92,7 @@ export function Sidebar(): React.JSX.Element {
         <div className="flex gap-1.5">
           <button
             type="button"
-            className="flex-1 rounded-lg border border-line px-2 py-1.5 text-[11px] text-txt-dim transition-colors hover:border-line-hi hover:text-txt disabled:opacity-40"
+            className="btn-outline flex-1"
             disabled={busy || padsInBank === 0}
             onClick={async () => {
               setBusy(true)
@@ -110,7 +110,7 @@ export function Sidebar(): React.JSX.Element {
           </button>
           <button
             type="button"
-            className="flex-1 rounded-lg border border-line px-2 py-1.5 text-[11px] text-txt-dim transition-colors hover:border-line-hi hover:text-txt disabled:opacity-40"
+            className="btn-outline flex-1"
             disabled={busy}
             onClick={async () => {
               setBusy(true)

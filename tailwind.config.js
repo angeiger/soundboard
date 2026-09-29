@@ -10,8 +10,11 @@ export default {
         line: '#22222E',
         'line-hi': '#2E2E3D',
         txt: '#E8E8F0',
-        'txt-dim': '#7A7A8C',
-        'txt-faint': '#4A4A5A',
+        // Contrast against the #08080C page background. The previous values
+        // were 4.75:1 and 2.30:1 -- the latter failing WCAG AA outright, which
+        // is why labels and hints were hard to read.
+        'txt-dim': '#A5A5B8', // 8.3:1
+        'txt-faint': '#7E7E92', // 5.0:1
         neon: {
           cyan: '#00F0FF',
           magenta: '#FF2E97',

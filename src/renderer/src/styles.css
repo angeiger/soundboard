@@ -70,8 +70,8 @@
 
   .pad-key {
     @apply absolute right-2.5 top-2.5 rounded-md border border-line px-1.5 py-0.5;
-    @apply font-mono text-[9.5px] font-bold tracking-wider text-txt-dim;
-    background: rgba(255, 255, 255, 0.04);
+    @apply font-mono text-[10px] font-bold tracking-wider text-txt-dim;
+    background: rgba(255, 255, 255, 0.06);
   }
   .pad:hover .pad-key,
   .pad--playing .pad-key {
@@ -80,17 +80,39 @@
     background: color-mix(in srgb, var(--c) 10%, transparent);
   }
 
+  /*
+   * Interactive chrome reads clearly at rest and gains a cyan wash on hover.
+   * Hover used to be the only state in which these were comfortably legible,
+   * which made every control feel like it needed hunting for.
+   */
   .chip {
     @apply flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5;
-    @apply text-[11.5px] text-txt-dim transition-colors;
+    @apply text-[12px] font-medium text-txt-dim transition-colors duration-150;
   }
   .chip:hover {
-    @apply border-line-hi text-txt;
+    border-color: color-mix(in srgb, var(--neon-cyan) 45%, transparent);
+    background: color-mix(in srgb, var(--neon-cyan) 6%, #101018);
+    color: var(--neon-cyan);
   }
 
   .btn-ghost {
-    @apply rounded-lg border border-transparent px-3 py-1.5 text-[12px] text-txt-dim;
-    @apply transition-colors hover:bg-surface-2 hover:text-txt;
+    @apply rounded-lg border border-transparent px-3 py-1.5;
+    @apply text-[12.5px] font-medium text-txt-dim transition-colors duration-150;
+  }
+  .btn-ghost:hover {
+    background: color-mix(in srgb, var(--neon-cyan) 8%, transparent);
+    color: var(--neon-cyan);
+  }
+
+  .btn-outline {
+    @apply rounded-lg border border-line px-2 py-1.5;
+    @apply text-[11.5px] font-medium text-txt-dim transition-colors duration-150;
+    @apply disabled:opacity-40;
+  }
+  .btn-outline:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--neon-cyan) 45%, transparent);
+    background: color-mix(in srgb, var(--neon-cyan) 6%, transparent);
+    color: var(--neon-cyan);
   }
 
   .field {
@@ -102,8 +124,10 @@
     box-shadow: 0 0 0 1px var(--neon-cyan);
   }
 
+  /* Weight 500 at this size: on a dark ground thin strokes bloom and read
+     lighter than they measure, so 400 looked fainter than its contrast ratio. */
   .label {
-    @apply text-[10px] uppercase tracking-[0.16em] text-txt-faint;
+    @apply text-[10.5px] font-medium uppercase tracking-[0.16em] text-txt-faint;
   }
 }
 
