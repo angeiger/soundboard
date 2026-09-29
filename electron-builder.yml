@@ -3,6 +3,13 @@ productName: Soundboard
 directories:
   buildResources: resources
   output: dist
+# uiohook-napi is N-API, so its prebuilt binary is ABI-stable across Electron
+# versions and must not be rebuilt. Letting @electron/rebuild try also breaks
+# outright here, because node-gyp cannot handle the space in "C:\Claude Code".
+npmRebuild: false
+# Native binaries cannot be loaded from inside an asar archive.
+asarUnpack:
+  - '**/node_modules/uiohook-napi/**'
 files:
   - '!**/.vscode/*'
   - '!src/*'

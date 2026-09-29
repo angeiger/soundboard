@@ -3,9 +3,10 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { ensureDirs } from './paths'
 import { registerIpc } from './ipc'
-import { setHandlers, unregisterAll } from './hotkeys'
+import { setHandlers, unregisterAll, startHook, stopHook } from './hotkeys'
 
 let mainWindow: BrowserWindow | null = null
+let hookError: string | null = null
 
 const getWindow = (): BrowserWindow | null => mainWindow
 
@@ -79,7 +80,14 @@ if (!gotLock) {
       bankSwitch: (index) => mainWindow?.webContents.send('trigger:bank', index)
     })
 
-    registerIpc(getWindow)
+    const hook = startHook()
+    if (!hook.ok) {
+      // Without the hook there are no global hotkeys at all, so this must not
+      // fail quietly -- the renderer surfaces it.
+      hookError = hook.error ?? 'unknown error'
+    }
+
+    registerIpc(getWindow, () => hookError)
     createWindow()
 
     app.on('activate', () => {
@@ -89,6 +97,7 @@ if (!gotLock) {
 
   app.on('will-quit', () => {
     unregisterAll()
+    stopHook()
   })
 
   app.on('window-all-closed', () => {

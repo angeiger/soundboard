@@ -17,6 +17,7 @@
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^4.0.0",
     "electron-store": "^10.0.1",
+    "uiohook-napi": "^1.5.5",
     "yauzl": "^3.2.0",
     "yazl": "^3.3.1"
   },

@@ -17,8 +17,12 @@ const MODIFIER_CODES = new Set([
   'MetaRight'
 ])
 
-/** F13-F24 are safe without a modifier: no normal keyboard can produce them. */
-const MODIFIERLESS_SAFE = /^F(1[3-9]|2[0-4])$/
+/**
+ * Safe without a modifier: no normal typing produces these, so they cannot
+ * fire a pad by accident. The hook does not consume keystrokes, so the only
+ * risk a bare key carries is firing while you type elsewhere.
+ */
+const MODIFIERLESS_SAFE = /^(F(1[3-9]|2[0-4])|Mouse[345])$/
 
 export function isModifierKey(code: string): boolean {
   return MODIFIER_CODES.has(code)
@@ -72,6 +76,31 @@ export interface CapturedHotkey {
   accelerator: string
   /** False when the combo would be stolen from every other app. */
   safe: boolean
+}
+
+/**
+ * Mouse buttons 4 and 5 are the thumb buttons; 3 is the wheel click. The
+ * browser numbers them 1, 3 and 4 respectively. Left and right are excluded --
+ * binding those would make the app unusable.
+ */
+const MOUSE_BUTTON_TOKENS: Record<number, string> = {
+  1: 'Mouse3',
+  3: 'Mouse4',
+  4: 'Mouse5'
+}
+
+export function captureMouseButton(e: MouseEvent): CapturedHotkey | null {
+  const token = MOUSE_BUTTON_TOKENS[e.button]
+  if (!token) return null
+
+  const parts: string[] = []
+  if (e.ctrlKey) parts.push('Control')
+  if (e.altKey) parts.push('Alt')
+  if (e.shiftKey) parts.push('Shift')
+  if (e.metaKey) parts.push('Super')
+  parts.push(token)
+
+  return { accelerator: parts.join('+'), safe: true }
 }
 
 export function captureHotkey(e: KeyboardEvent): CapturedHotkey | null {

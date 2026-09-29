@@ -1,12 +1,17 @@
 import { ipcMain, dialog, BrowserWindow, shell } from 'electron'
 import { loadConfig, saveConfig } from './store'
 import * as library from './library'
-import { syncPadHotkeys, unregisterAll, validateAccelerator } from './hotkeys'
+import { syncPadHotkeys, suspend, resume, validateAccelerator } from './hotkeys'
 import { writePack, readPack } from './soundpack'
 import { isElevated, relaunchElevated } from './elevation'
 import type { Config, Pad, PackManifest } from '@shared/types'
 
-export function registerIpc(getWindow: () => BrowserWindow | null): void {
+export function registerIpc(
+  getWindow: () => BrowserWindow | null,
+  getHookError: () => string | null
+): void {
+  ipcMain.handle('hotkeys:hookError', () => getHookError())
+
   ipcMain.handle('config:get', () => loadConfig())
 
   ipcMain.handle('config:save', (_e, config: Config) => {
@@ -67,12 +72,15 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   )
 
   /**
-   * While the UI is listening for a new hotkey we must release everything we
-   * hold: a combo owned by RegisterHotKey never reaches the renderer's keydown
-   * handler, so without this you could never rebind an existing pad.
+   * Pauses triggering while the UI records a new hotkey, so the combo being
+   * pressed does not also fire whatever it is currently bound to.
    */
   ipcMain.handle('hotkeys:suspend', () => {
-    unregisterAll()
+    suspend()
+  })
+
+  ipcMain.handle('hotkeys:resume', () => {
+    resume()
   })
 
   ipcMain.handle(

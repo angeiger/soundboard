@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { captureHotkey, formatAccelerator } from '@/state/hotkey'
+import { captureHotkey, captureMouseButton, formatAccelerator } from '@/state/hotkey'
 import { useStore } from '@/state/store'
 
 interface Props {
@@ -45,11 +45,26 @@ export function HotkeyCapture({ value, onChange }: Props): React.JSX.Element {
       setWarning(null)
     }
 
+    // Thumb buttons are only bindable now that a low-level hook replaced
+    // RegisterHotKey, which was keyboard-only.
+    const onMouseDown = (e: MouseEvent): void => {
+      const captured = captureMouseButton(e)
+      if (!captured) return
+      e.preventDefault()
+      e.stopPropagation()
+      onChange(captured.accelerator)
+      setListening(false)
+      setWarning(null)
+    }
+
     window.addEventListener('keydown', onKeyDown, true)
+    window.addEventListener('mousedown', onMouseDown, true)
     return () => {
       window.removeEventListener('keydown', onKeyDown, true)
-      // Whether the user picked a combo or hit Escape, global bindings have to
-      // come back. onChange also triggers a sync, but cancelling does not.
+      window.removeEventListener('mousedown', onMouseDown, true)
+      // Whether the user picked a combo or hit Escape, triggering has to come
+      // back on. onChange also re-syncs bindings, but cancelling does not.
+      void window.api.hotkeys.resume()
       resyncHotkeys()
     }
   }, [listening, onChange, resyncHotkeys])
@@ -66,7 +81,9 @@ export function HotkeyCapture({ value, onChange }: Props): React.JSX.Element {
               : 'border-line bg-bg text-txt hover:border-line-hi'
           }`}
         >
-          {listening ? 'Press a combo…  (Esc to cancel)' : formatAccelerator(value) || 'Unbound'}
+          {listening
+            ? 'Press a combo or thumb button…  (Esc to cancel)'
+            : formatAccelerator(value) || 'Unbound'}
         </button>
 
         {value && !listening && (

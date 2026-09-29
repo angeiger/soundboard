@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from '@/state/store'
 import { listDevices, primeDevicePermissions, onDeviceChange } from '@/audio/devices'
 import { TitleBar } from './components/TitleBar'
@@ -19,10 +19,17 @@ export default function App(): React.JSX.Element {
   const editingPadId = useStore((s) => s.editingPadId)
   const settingsOpen = useStore((s) => s.settingsOpen)
   const hotkeyIssues = useStore((s) => s.hotkeyIssues)
+  const [hookError, setHookError] = useState<string | null>(null)
 
   useEffect(() => {
     void load()
   }, [load])
+
+  // Without the hook there are no global hotkeys at all, so a failure has to
+  // be visible rather than leaving someone to discover it in a match.
+  useEffect(() => {
+    void window.api.hotkeys.hookError().then(setHookError)
+  }, [])
 
   // Device labels stay blank until mic permission has been granted once, so
   // prime it before the first enumeration.
@@ -59,6 +66,17 @@ export default function App(): React.JSX.Element {
       <TitleBar />
 
       <ElevationBanner />
+
+      {hookError && (
+        <div className="border-b border-[rgba(255,59,59,.3)] bg-[rgba(255,59,59,.07)] px-4 py-2.5">
+          <p className="text-[12px] text-[#FF6B6B]">
+            Keyboard hook failed to start — no global hotkeys are active.
+          </p>
+          <p className="mt-0.5 text-[11px] text-txt-dim">
+            Pads still work by clicking them. {hookError}
+          </p>
+        </div>
+      )}
 
       {hotkeyIssues.length > 0 && (
         <div className="border-b border-[rgba(255,176,32,.25)] bg-[rgba(255,176,32,.06)] px-4 py-2 text-[11.5px] text-[var(--neon-amber)]">
