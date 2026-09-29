@@ -166,9 +166,10 @@ export function SettingsPanel(): React.JSX.Element {
             </label>
           </div>
           <p className="text-[11px] leading-relaxed text-txt-faint">
-            A global hotkey is taken away from every other application while
-            Soundboard runs, so this stays off unless you actually use several banks.
-            Pads themselves default to Ctrl+Alt+Numpad, which nothing else uses.
+            These fire from anywhere, including inside a game and while you type —
+            and on a German keyboard, Ctrl+Alt+7, 8 and 9 are how you type{' '}
+            {'{ [ ]'}. So this stays off unless you actually use several banks. Pads
+            themselves default to Ctrl+Alt+Numpad, which nothing else uses.
           </p>
         </section>
 

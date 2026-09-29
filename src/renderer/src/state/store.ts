@@ -34,8 +34,6 @@ interface State {
   hotkeyIssues: HotkeyRegistrationResult[]
   /** Pad whose settings drawer is open, or null. */
   editingPadId: string | null
-  /** Pad currently listening for a new hotkey, or null. */
-  capturingPadId: string | null
   settingsOpen: boolean
   searchQuery: string
 
@@ -60,7 +58,6 @@ interface State {
   setDevices: (devices: { inputs: AudioDevice[]; outputs: AudioDevice[] }) => void
 
   setEditingPad: (padId: string | null) => void
-  setCapturingPad: (padId: string | null) => void
   setSettingsOpen: (open: boolean) => void
   setSearchQuery: (query: string) => void
   setBankHotkeys: (enabled: boolean) => void
@@ -100,7 +97,6 @@ export const useStore = create<State>((set, get) => ({
   devices: { inputs: [], outputs: [] },
   hotkeyIssues: [],
   editingPadId: null,
-  capturingPadId: null,
   settingsOpen: false,
   searchQuery: '',
 
@@ -331,7 +327,6 @@ export const useStore = create<State>((set, get) => ({
 
   setDevices: (devices) => set({ devices }),
   setEditingPad: (padId) => set({ editingPadId: padId }),
-  setCapturingPad: (padId) => set({ capturingPadId: padId }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setSearchQuery: (query) => set({ searchQuery: query }),
 

@@ -19,7 +19,9 @@ export const DEFAULT_BANK_ID = 'bank-default'
 
 /**
  * Ctrl+Alt+Numpad0..9. Chosen because nothing in League (or any game) binds
- * these, RegisterHotKey accepts them, and they need no macro keyboard.
+ * these, they need no macro keyboard, and -- unlike Ctrl+Alt+letter or digit
+ * -- they do not collide with AltGr characters on German and other European
+ * layouts, where Ctrl+Alt+Q is how "@" gets typed.
  */
 export const SUGGESTED_HOTKEYS = [
   'Control+Alt+num1',
@@ -64,7 +66,6 @@ export function defaultConfig(): Config {
     // Off by default: global bank switching takes three more combos away from
     // every other app, which is a bad trade for anyone running a single bank.
     bankHotkeysEnabled: false,
-    launchMinimised: false,
     setupCompleted: false
   }
 }

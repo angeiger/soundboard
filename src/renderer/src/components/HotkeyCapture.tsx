@@ -8,9 +8,9 @@ interface Props {
 }
 
 /**
- * Records a new hotkey. Global bindings are released for the duration, because
- * a combo already held by RegisterHotKey never reaches the renderer's keydown
- * handler -- without this you could never rebind an existing pad.
+ * Records a new hotkey. Triggering is suspended for the duration: the keyboard
+ * hook does not consume keystrokes, so pressing a combo that is already bound
+ * would otherwise also fire that pad while you were trying to rebind it.
  */
 export function HotkeyCapture({ value, onChange }: Props): React.JSX.Element {
   const [listening, setListening] = useState(false)
@@ -36,7 +36,9 @@ export function HotkeyCapture({ value, onChange }: Props): React.JSX.Element {
       if (!captured) return
 
       if (!captured.safe) {
-        setWarning('Needs a modifier — a bare key would be stolen from every other app')
+        setWarning(
+          'Needs a modifier — a bare key would fire this pad every time you typed it in Discord'
+        )
         return
       }
 
@@ -45,8 +47,8 @@ export function HotkeyCapture({ value, onChange }: Props): React.JSX.Element {
       setWarning(null)
     }
 
-    // Thumb buttons are only bindable now that a low-level hook replaced
-    // RegisterHotKey, which was keyboard-only.
+    // Thumb buttons are bindable because the low-level hook sees the mouse too;
+    // RegisterHotKey, which it replaced, was keyboard-only.
     const onMouseDown = (e: MouseEvent): void => {
       const captured = captureMouseButton(e)
       if (!captured) return

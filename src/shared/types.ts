@@ -31,7 +31,7 @@ export interface Pad {
   color: NeonColor
   /** Single emoji shown on the pad face. */
   glyph: string
-  /** Accelerator string in Electron's globalShortcut format, or null. */
+  /** Accelerator string as defined in shared/accelerator.ts, or null. */
   hotkey: string | null
   /** Skip the local monitor path. Useful on high-latency Bluetooth output. */
   noMonitor: boolean
@@ -80,9 +80,8 @@ export interface Config {
   output: OutputSettings
   master: number
   panicHotkey: string | null
-  /** Bank switching via Ctrl+1..9. */
+  /** Bank switching via Ctrl+Alt+1..9. */
   bankHotkeysEnabled: boolean
-  launchMinimised: boolean
   setupCompleted: boolean
 }
 
@@ -132,8 +131,12 @@ export interface HotkeyRegistrationResult {
   padId: string
   accelerator: string
   ok: boolean
-  /** Populated when ok is false: 'taken' (another app holds it) or 'invalid'. */
-  reason?: 'taken' | 'invalid' | 'conflict'
+  /**
+   * Populated when ok is false. The keyboard hook claims nothing from the OS,
+   * so another application can never hold a combo; the only failures left
+   * are a malformed accelerator and two pads sharing one.
+   */
+  reason?: 'invalid' | 'conflict'
   /** When reason is 'conflict', the pad already using this accelerator. */
   conflictsWith?: string
 }

@@ -21,6 +21,10 @@ function migrate(raw: Config): Config {
   // Settings, where it now uses Control+Alt+digit instead.
   if ((raw.version ?? 1) < 2) merged.bankHotkeysEnabled = false
 
+  // Never read by anything, and removed from Config. The spread above would
+  // otherwise carry it forward in every saved file indefinitely.
+  Reflect.deleteProperty(merged, 'launchMinimised')
+
   return merged
 }
 
