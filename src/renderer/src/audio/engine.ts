@@ -1,5 +1,5 @@
 import { LocalTarget } from './local-target'
-import type { PlaybackTarget } from './target'
+import { hasLocalAudioControls, type PlaybackTarget } from './target'
 import type { Pad, MicSettings, OutputSettings } from '@shared/types'
 
 /**
@@ -96,17 +96,17 @@ class Engine {
 
   async setOutput(output: OutputSettings): Promise<void> {
     await this.init()
-    if (this.target instanceof LocalTarget) await this.target.setOutputDevices(output)
+    if (hasLocalAudioControls(this.target)) await this.target.setOutputDevices(output)
   }
 
   async setMic(mic: MicSettings): Promise<void> {
     await this.init()
-    if (this.target instanceof LocalTarget) await this.target.setMic(mic)
+    if (hasLocalAudioControls(this.target)) await this.target.setMic(mic)
   }
 
   async setMaster(value: number): Promise<void> {
     await this.init()
-    if (this.target instanceof LocalTarget) this.target.setMasterGain(value)
+    if (hasLocalAudioControls(this.target)) this.target.setMasterGain(value)
   }
 
   /** Drops a decoded buffer, e.g. after the pad using it was deleted. */

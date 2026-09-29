@@ -7,6 +7,8 @@
  * the store -- knows or cares which one is active.
  */
 
+import type { MicSettings, OutputSettings } from '@shared/types'
+
 export interface PlayRequest {
   padId: string
   buffer: AudioBuffer
@@ -29,4 +31,29 @@ export interface PlaybackTarget {
   /** Seconds elapsed for the newest voice of this pad, or null. */
   progress(padId: string): number | null
   dispose(): Promise<void>
+}
+
+/**
+ * Optional capability: the target owns real Windows audio devices and a
+ * microphone branch. LocalTarget does; a bot target would not.
+ *
+ * The engine feature-detects this rather than checking the concrete class,
+ * which is what keeps PlaybackTarget a real seam.
+ */
+export interface LocalAudioControls {
+  /** Aims the output buses at real devices. */
+  setOutputDevices(output: OutputSettings): Promise<void>
+  setMic(mic: MicSettings): Promise<void>
+  setMasterGain(value: number): void
+}
+
+export function hasLocalAudioControls(
+  target: PlaybackTarget
+): target is PlaybackTarget & LocalAudioControls {
+  const t = target as Partial<LocalAudioControls>
+  return (
+    typeof t.setOutputDevices === 'function' &&
+    typeof t.setMic === 'function' &&
+    typeof t.setMasterGain === 'function'
+  )
 }

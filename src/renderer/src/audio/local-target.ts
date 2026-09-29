@@ -1,4 +1,4 @@
-import type { PlaybackTarget, PlayRequest } from './target'
+import type { PlaybackTarget, PlayRequest, LocalAudioControls } from './target'
 import { gateWorkletUrl } from './gate-worklet'
 import type { MicSettings, OutputSettings } from '@shared/types'
 
@@ -24,7 +24,7 @@ interface Voice {
  * elements, because setSinkId lives on HTMLMediaElement -- it is the only way
  * to aim Web Audio at a specific Windows output device.
  */
-export class LocalTarget implements PlaybackTarget {
+export class LocalTarget implements PlaybackTarget, LocalAudioControls {
   readonly kind = 'local' as const
 
   private ctx: AudioContext | null = null
