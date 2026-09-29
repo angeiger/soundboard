@@ -362,7 +362,9 @@ export const useStore = create<State>((set, get) => ({
     }
 
     const next = { ...config, banks, pads }
-    set({ config: next, activeBankId: banks[0].id })
+    // Only move off the bank being looked at if that is the one going.
+    const activeBankId = get().activeBankId === bankId ? banks[0].id : get().activeBankId
+    set({ config: next, activeBankId })
     persist(next)
     syncHotkeys(next, (issues) => set({ hotkeyIssues: issues }))
   },

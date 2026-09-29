@@ -9,6 +9,7 @@ export function PadGrid(): React.JSX.Element {
   const peaks = useStore((s) => s.peaks)
   const playing = useStore((s) => s.playing)
   const triggerPad = useStore((s) => s.triggerPad)
+  const stopPad = useStore((s) => s.stopPad)
   const setEditingPad = useStore((s) => s.setEditingPad)
   const addPads = useStore((s) => s.addPads)
 
@@ -54,6 +55,7 @@ export function PadGrid(): React.JSX.Element {
             playing={playing.has(pad.id)}
             onTrigger={() => void triggerPad(pad.id)}
             onEdit={() => setEditingPad(pad.id)}
+            onStop={() => stopPad(pad.id)}
           />
         ))}
 

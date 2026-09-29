@@ -14,9 +14,10 @@ interface Props {
   playing: boolean
   onTrigger: () => void
   onEdit: () => void
+  onStop: () => void
 }
 
-export function Pad({ pad, peaks, playing, onTrigger, onEdit }: Props): React.JSX.Element {
+export function Pad({ pad, peaks, playing, onTrigger, onEdit, onStop }: Props): React.JSX.Element {
   const [progress, setProgress] = useState(0)
   const raf = useRef<number | null>(null)
 
@@ -57,9 +58,12 @@ export function Pad({ pad, peaks, playing, onTrigger, onEdit }: Props): React.JS
       onClick={onTrigger}
       onContextMenu={(e) => {
         e.preventDefault()
-        onEdit()
+        // Right-click stops just this one while it plays, so a long clip
+        // can be cut without Panic silencing everything else too.
+        if (playing) onStop()
+        else onEdit()
       }}
-      title={`${pad.name}\nRight-click to edit`}
+      title={`${pad.name}\n${playing ? 'Right-click to stop' : 'Right-click to edit · right-click while playing to stop'}`}
     >
       <span className="text-[19px] leading-none">{pad.glyph || '▶'}</span>
 
