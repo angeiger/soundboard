@@ -1,6 +1,8 @@
 import { app } from 'electron'
 import { execFile, spawn } from 'child_process'
 import { join } from 'path'
+import { tmpdir } from 'os'
+import { writeFileSync } from 'fs'
 
 /**
  * Whether we are running with an elevated token, and how to restart if not.
@@ -38,30 +40,79 @@ export function isElevated(): Promise<boolean> {
   })
 }
 
+/** Where the relaunch helper records what it did, for when it does not work. */
+export const relaunchLogPath = join(tmpdir(), 'soundboard-relaunch.log')
+
 /**
  * Relaunches the app elevated and quits this instance.
  *
- * The delay is load-bearing. requestSingleInstanceLock means an elevated
- * instance starting while this one still holds the lock would simply focus us
- * and exit, so the new process has to wait for this one to release it.
+ * Three things here are load-bearing, each having broken this in testing:
+ *
+ * 1. The helper is written to a file rather than passed as -Command. Quoting a
+ *    command containing spaces, semicolons, quotes and braces through Node's
+ *    Windows argument escaping and then PowerShell's parser is a coin flip.
+ * 2. It is launched through `cmd /c start`, which orphans it properly. A plain
+ *    detached spawn still died with its parent, so the helper never survived
+ *    long enough to relaunch anything.
+ * 3. It waits for *this* process to actually exit rather than sleeping a fixed
+ *    interval. requestSingleInstanceLock means an elevated instance starting
+ *    while we still hold the lock would simply focus us and exit.
  */
 export function relaunchElevated(): void {
   if (process.platform !== 'win32') return
 
-  const target = process.execPath.replace(/'/g, "''")
+  const target = process.execPath
+  const scriptPath = join(tmpdir(), 'soundboard-relaunch.ps1')
 
-  // The catch matters: declining the UAC prompt throws, and without a fallback
-  // the user is left with no app at all, having just asked it to restart.
-  const command =
-    `Start-Sleep -Milliseconds 900; ` +
-    `try { Start-Process -FilePath '${target}' -Verb RunAs } ` +
-    `catch { Start-Process -FilePath '${target}' }`
+  const script = [
+    `$log = ${psQuote(relaunchLogPath)}`,
+    `$exe = ${psQuote(target)}`,
+    `"[$(Get-Date -Format o)] waiting for PID ${process.pid}" | Set-Content -Path $log`,
+    `try { Wait-Process -Id ${process.pid} -Timeout 20 -ErrorAction Stop } catch { "wait ended: $_" | Add-Content $log }`,
+    `Start-Sleep -Milliseconds 400`,
+    `try {`,
+    `  Start-Process -FilePath $exe -Verb RunAs`,
+    `  "relaunched elevated" | Add-Content $log`,
+    `} catch {`,
+    // Declining UAC throws. Without this the user is left with no app at all,
+    // having just asked it to restart.
+    `  "RunAs failed: $_" | Add-Content $log`,
+    `  try { Start-Process -FilePath $exe; "relaunched normally" | Add-Content $log }`,
+    `  catch { "normal launch failed too: $_" | Add-Content $log }`,
+    `}`
+  ].join('\n')
 
-  spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', command], {
-    detached: true,
-    stdio: 'ignore',
-    windowsHide: true
-  }).unref()
+  try {
+    writeFileSync(scriptPath, script, 'utf-8')
+  } catch {
+    // If we cannot even stage the helper, staying open beats quitting into
+    // nothing.
+    return
+  }
+
+  spawn(
+    'cmd.exe',
+    [
+      '/c',
+      'start',
+      '',
+      '/min',
+      'powershell.exe',
+      '-NoProfile',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-WindowStyle',
+      'Hidden',
+      '-File',
+      scriptPath
+    ],
+    { detached: true, stdio: 'ignore', windowsHide: true }
+  ).unref()
 
   app.quit()
+}
+
+/** Single-quoted PowerShell literal, with embedded quotes doubled. */
+function psQuote(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`
 }
