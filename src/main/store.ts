@@ -5,7 +5,8 @@ import type { Config } from '@shared/types'
 
 let cached: Config | null = null
 
-function migrate(raw: Config): Config {
+/** Brings a stored config of any version up to CONFIG_VERSION. Exported for tests. */
+export function migrate(raw: Config): Config {
   const base = defaultConfig()
   const merged: Config = {
     ...base,

@@ -14,7 +14,7 @@ export const PACK_FORMAT = 'soundboard-pack'
 export const PACK_VERSION = 1
 
 /** Guards against a zip entry escaping the extraction directory. */
-function isSafeEntryPath(name: string): boolean {
+export function isSafeEntryPath(name: string): boolean {
   if (name.includes('\0')) return false
   const normalised = name.replace(/\\/g, '/')
   if (normalised.startsWith('/') || /^[a-zA-Z]:/.test(normalised)) return false
