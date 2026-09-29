@@ -154,7 +154,7 @@ export function Sidebar(): React.JSX.Element {
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [menuId, setMenuId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [packMessage, setPackMessage] = useState('')
+  const [packMessage, setPackMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
   const padsInBank = pads.filter((p) => p.bankId === activeBankId).length
 
@@ -249,8 +249,15 @@ export function Sidebar(): React.JSX.Element {
       )}
 
       <div className="mt-auto flex flex-col gap-1.5">
-        {packMessage && (
-          <p className="px-1 text-[11px] leading-snug text-[var(--neon-lime)]">{packMessage}</p>
+        {packMessage && packMessage.text && (
+          <p
+            role={packMessage.ok ? 'status' : 'alert'}
+            className={`break-words px-1 text-[11px] leading-snug ${
+              packMessage.ok ? 'text-[var(--neon-lime)]' : 'text-[#FF6B6B]'
+            }`}
+          >
+            {packMessage.text}
+          </p>
         )}
 
         <div className="flex gap-1.5">
@@ -260,8 +267,8 @@ export function Sidebar(): React.JSX.Element {
             disabled={busy || padsInBank === 0}
             onClick={async () => {
               setBusy(true)
-              const path = await exportBank(activeBankId)
-              setPackMessage(path ? 'Exported' : '')
+              const result = await exportBank(activeBankId)
+              setPackMessage({ ok: result.ok, text: result.message })
               setBusy(false)
             }}
             title={
@@ -279,7 +286,7 @@ export function Sidebar(): React.JSX.Element {
             onClick={async () => {
               setBusy(true)
               const result = await importPack()
-              setPackMessage(result.message)
+              setPackMessage({ ok: result.ok, text: result.message })
               setBusy(false)
             }}
             title="Load a .soundpack into a new bank"

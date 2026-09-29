@@ -55,12 +55,17 @@ interface State {
   updateDismissed: string | null
   /** Why the last settings save failed; changes are lost on restart until it works. */
   saveError: string | null
+  /** Pad id -> why its audio cannot be played. */
+  brokenPads: Record<string, string>
+  /** Where a corrupt config was set aside at startup, until dismissed. */
+  recoveredConfig: string | null
 
   load: () => Promise<void>
   setActiveBank: (bankId: string) => void
   setActiveBankByIndex: (index: number) => void
 
-  addPads: (files: string[]) => Promise<void>
+  /** Adds pads for the files that can be played, and says which could not. */
+  addPads: (files: string[]) => Promise<{ added: number; skipped: { name: string; reason: string }[] }>
   updatePad: (padId: string, patch: Partial<Pad>) => void
   deletePad: (padId: string) => void
   triggerPad: (padId: string) => Promise<void>
@@ -90,8 +95,17 @@ interface State {
   setBankHotkeys: (enabled: boolean) => void
   resyncHotkeys: () => void
   normalizePad: (padId: string) => Promise<void>
-  exportBank: (bankId: string) => Promise<string | null>
+  exportBank: (bankId: string) => Promise<{ ok: boolean; message: string }>
   importPack: () => Promise<{ ok: boolean; message: string }>
+  dismissRecoveredConfig: () => void
+}
+
+/**
+ * For writes whose failure costs nothing but a cache miss or an orphaned
+ * file. Left unhandled they would surface as unhandled rejections instead.
+ */
+function bestEffort(p: Promise<unknown>): void {
+  p.catch(() => undefined)
 }
 
 function persist(config: Config): void {
@@ -152,6 +166,8 @@ export const useStore = create<State>((set, get) => ({
   update: { state: 'idle' },
   updateDismissed: null,
   saveError: null,
+  brokenPads: {},
+  recoveredConfig: null,
 
   load: async () => {
     const config = await window.api.config.get()
@@ -159,7 +175,8 @@ export const useStore = create<State>((set, get) => ({
       config,
       loaded: true,
       activeBankId: config.banks[0]?.id ?? DEFAULT_BANK_ID,
-      setupOpen: !config.setupCompleted
+      setupOpen: !config.setupCompleted,
+      recoveredConfig: await window.api.config.recoveryNotice()
     })
 
     window.api.on.updateStatus((update) => set({ update }))
@@ -193,8 +210,8 @@ export const useStore = create<State>((set, get) => ({
   },
 
   addPads: async (files) => {
-    const imported = await window.api.library.import(files)
-    if (imported.length === 0) return
+    const { imported, skipped } = await window.api.library.import(files)
+    if (imported.length === 0) return { added: 0, skipped }
 
     const { config, activeBankId } = get()
     const inBank = config.pads.filter((p) => p.bankId === activeBankId)
@@ -210,13 +227,21 @@ export const useStore = create<State>((set, get) => ({
 
     for (const sound of imported) {
       const buffer = await engine.loadBuffer(sound.hash, sound.ext)
-      if (!buffer) continue
+      if (!buffer) {
+        // Copied in, but not something Chromium can decode. The copy is of no
+        // use to anyone, so it goes again -- unless another pad shares it.
+        skipped.push({ name: `${sound.name}${sound.ext}`, reason: 'could not be decoded' })
+        if (!get().config.pads.some((p) => p.hash === sound.hash)) {
+          bestEffort(window.api.library.prune(sound.hash, sound.ext))
+        }
+        continue
+      }
 
       // Peaks are computed once here, then cached to disk forever.
       if (!get().peaks[sound.hash]) {
         const cached = await window.api.library.readPeaks(sound.hash)
         const peaks = cached ?? computePeaks(buffer)
-        if (!cached) void window.api.library.writePeaks(sound.hash, peaks)
+        if (!cached) bestEffort(window.api.library.writePeaks(sound.hash, peaks))
         set((s) => ({ peaks: { ...s.peaks, [sound.hash]: peaks } }))
       }
 
@@ -249,6 +274,7 @@ export const useStore = create<State>((set, get) => ({
     set({ config: next })
     persist(next)
     syncHotkeys(next, (issues) => set({ hotkeyIssues: issues }))
+    return { added: newPads.length, skipped }
   },
 
   updatePad: (padId, patch) => {
@@ -271,7 +297,7 @@ export const useStore = create<State>((set, get) => ({
 
     // Only prune the audio file once nothing else references the same clip.
     if (!pads.some((p) => p.hash === pad.hash)) {
-      void window.api.library.prune(pad.hash, pad.ext)
+      bestEffort(window.api.library.prune(pad.hash, pad.ext))
       engine.evict(pad.hash)
     }
 
@@ -285,8 +311,19 @@ export const useStore = create<State>((set, get) => ({
     const pad = get().config.pads.find((p) => p.id === padId)
     if (!pad) return
 
-    const started = await engine.trigger(pad)
-    if (!started) {
+    const result = await engine.trigger(pad)
+    if (result === 'failed') {
+      const reason = engine.loadError(pad.hash) ?? 'Its audio could not be played.'
+      set((s) => ({ brokenPads: { ...s.brokenPads, [padId]: reason } }))
+      return
+    }
+    if (get().brokenPads[padId]) {
+      set((s) => {
+        const { [padId]: _fixed, ...rest } = s.brokenPads
+        return { brokenPads: rest }
+      })
+    }
+    if (result === 'suppressed') {
       set((s) => {
         const playing = new Set(s.playing)
         if (!engine.isPlaying(padId)) playing.delete(padId)
@@ -356,7 +393,7 @@ export const useStore = create<State>((set, get) => ({
 
     for (const pad of orphaned) {
       if (!pads.some((p) => p.hash === pad.hash)) {
-        void window.api.library.prune(pad.hash, pad.ext)
+        bestEffort(window.api.library.prune(pad.hash, pad.ext))
         engine.evict(pad.hash)
       }
     }
@@ -470,12 +507,12 @@ export const useStore = create<State>((set, get) => ({
   exportBank: async (bankId) => {
     const { config } = get()
     const bank = config.banks.find((b) => b.id === bankId)
-    if (!bank) return null
+    if (!bank) return { ok: false, message: '' }
 
     const pads = config.pads
       .filter((p) => p.bankId === bankId)
       .sort((a, b) => a.index - b.index)
-    if (pads.length === 0) return null
+    if (pads.length === 0) return { ok: false, message: 'This bank is empty' }
 
     const manifest = {
       format: 'soundboard-pack',
@@ -501,8 +538,18 @@ export const useStore = create<State>((set, get) => ({
     const sounds = pads.map((p) => ({ hash: p.hash, ext: p.ext }))
     const safeName = bank.name.replace(/[^\w\- ]+/g, '').trim() || 'soundpack'
     const result = await window.api.pack.export(manifest, sounds, safeName)
-    return result.ok ? (result.path ?? null) : null
+    // A failed export used to look exactly like a cancelled one: no message.
+    if (result.ok) {
+      const file = (result.path ?? '').split(/[\\/]/).pop()
+      return { ok: true, message: `Exported ${file}` }
+    }
+    return {
+      ok: false,
+      message: result.reason === 'cancelled' ? '' : `Export failed: ${result.reason}`
+    }
   },
+
+  dismissRecoveredConfig: () => set({ recoveredConfig: null }),
 
   importPack: async () => {
     const result = await window.api.pack.import()
@@ -582,7 +629,7 @@ export const useStore = create<State>((set, get) => ({
       const buffer = await engine.loadBuffer(pad.hash, pad.ext)
       if (!buffer) continue
       const computed = computePeaks(buffer)
-      void window.api.library.writePeaks(pad.hash, computed)
+      bestEffort(window.api.library.writePeaks(pad.hash, computed))
       set((s) => ({ peaks: { ...s.peaks, [pad.hash]: computed } }))
     }
 

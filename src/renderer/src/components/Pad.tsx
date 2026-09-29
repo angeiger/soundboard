@@ -15,9 +15,19 @@ interface Props {
   onTrigger: () => void
   onEdit: () => void
   onStop: () => void
+  /** Why this pad's audio cannot be played, once a trigger has failed. */
+  broken?: string
 }
 
-export function Pad({ pad, peaks, playing, onTrigger, onEdit, onStop }: Props): React.JSX.Element {
+export function Pad({
+  pad,
+  peaks,
+  playing,
+  onTrigger,
+  onEdit,
+  onStop,
+  broken
+}: Props): React.JSX.Element {
   const [progress, setProgress] = useState(0)
   const raf = useRef<number | null>(null)
 
@@ -63,7 +73,7 @@ export function Pad({ pad, peaks, playing, onTrigger, onEdit, onStop }: Props): 
         if (playing) onStop()
         else onEdit()
       }}
-      title={`${pad.name}\n${playing ? 'Right-click to stop' : 'Right-click to edit · right-click while playing to stop'}`}
+      title={`${pad.name}\n${broken ? `Cannot play: ${broken}\n` : ''}${playing ? 'Right-click to stop' : 'Right-click to edit · right-click while playing to stop'}`}
     >
       <span className="text-[19px] leading-none">{pad.glyph || '▶'}</span>
 
@@ -76,11 +86,17 @@ export function Pad({ pad, peaks, playing, onTrigger, onEdit, onStop }: Props): 
         {pad.name}
       </span>
 
-      <span className="mt-0.5 font-mono text-[10px] text-txt-faint">
-        {playing
-          ? `${formatDuration(progress * trimmedLength)} / ${formatDuration(trimmedLength)}`
-          : formatDuration(trimmedLength)}
-      </span>
+      {broken ? (
+        <span className="mt-0.5 text-[10.5px] font-medium text-[#FF6B6B]">
+          Cannot play — audio {/decoded/.test(broken) ? 'damaged' : 'missing'}
+        </span>
+      ) : (
+        <span className="mt-0.5 font-mono text-[10px] text-txt-faint">
+          {playing
+            ? `${formatDuration(progress * trimmedLength)} / ${formatDuration(trimmedLength)}`
+            : formatDuration(trimmedLength)}
+        </span>
+      )}
 
       <span
         className="pointer-events-none absolute inset-x-0 bottom-0 flex h-6 items-end gap-[2px] px-3 pb-2.5"

@@ -51,6 +51,8 @@ class Engine {
   private lastTriggered = new Map<string, number>()
   private ready = false
   private testTone: AudioBuffer | null = null
+  /** Why a clip could not be loaded, by hash, so its pad can say so. */
+  private loadErrors = new Map<string, string>()
 
   async init(): Promise<void> {
     if (this.ready) return
@@ -70,38 +72,53 @@ class Engine {
   async loadBuffer(hash: string, ext: string): Promise<AudioBuffer | null> {
     const cached = this.buffers.get(hash)
     if (cached) return cached
+    let raw: ArrayBuffer
     try {
-      const raw = await window.api.library.read(hash, ext)
+      raw = await window.api.library.read(hash, ext)
+    } catch {
+      this.loadErrors.set(hash, 'Its audio file is missing from the library.')
+      return null
+    }
+    try {
       const buffer = await this.getDecodeCtx().decodeAudioData(raw)
       this.buffers.set(hash, buffer)
+      this.loadErrors.delete(hash)
       return buffer
     } catch {
+      this.loadErrors.set(hash, 'Its audio could not be decoded; the file may be damaged.')
       return null
     }
   }
 
+  /** Why the clip with this hash failed to load, or null if it has not. */
+  loadError(hash: string): string | null {
+    return this.loadErrors.get(hash) ?? null
+  }
+
   /**
-   * Applies the pad's play mode, then hands off to the target.
-   * Returns false when the trigger was swallowed by a cooldown or a toggle-off.
+   * Applies the pad's play mode, then hands off to the target. "suppressed"
+   * means a cooldown or a toggle-off swallowed it on purpose; "failed" means
+   * the audio could not be loaded, which the pad has to show -- a hotkey that
+   * silently does nothing mid-game reads as the app being broken.
    */
-  async trigger(pad: Pad): Promise<boolean> {
+  async trigger(pad: Pad): Promise<'started' | 'suppressed' | 'failed'> {
     await this.init()
 
     if (pad.cooldown > 0) {
       const last = this.lastTriggered.get(pad.id) ?? 0
-      if (performance.now() - last < pad.cooldown * 1000) return false
+      if (performance.now() - last < pad.cooldown * 1000) return 'suppressed'
     }
 
     if (pad.playMode === 'toggle' && this.target.isPlaying(pad.id)) {
       this.target.stop(pad.id)
-      return false
+      return 'suppressed'
     }
     if (pad.playMode === 'restart') {
       this.target.stop(pad.id)
     }
 
     const buffer = await this.loadBuffer(pad.hash, pad.ext)
-    if (!buffer) return false
+    if (!buffer) return 'failed'
 
     this.lastTriggered.set(pad.id, performance.now())
 
@@ -113,7 +130,7 @@ class Engine {
       trimEnd: pad.trimEnd,
       monitor: !pad.noMonitor
     })
-    return true
+    return 'started'
   }
 
   stop(padId: string): void {

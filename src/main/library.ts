@@ -42,6 +42,7 @@ export async function readPeaks(hash: string): Promise<number[] | null> {
   try {
     return JSON.parse(await readFile(p, 'utf-8')) as number[]
   } catch {
+    // Only a cache: a damaged file is recomputed from the audio instead.
     return null
   }
 }
@@ -60,7 +61,8 @@ export async function pruneSound(hash: string, ext: string): Promise<void> {
     try {
       if (existsSync(p)) await unlink(p)
     } catch {
-      /* best effort */
+      // An orphaned file only costs disk space and nothing will play it, so
+      // there is nothing worth telling anyone.
     }
   }
 }

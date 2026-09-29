@@ -104,6 +104,23 @@ describe('loadConfig', () => {
     expect(readdirSync(dir()).some((f) => f.startsWith('config.json.corrupt-'))).toBe(true)
   })
 
+  it('reports where the corrupt config went, exactly once', async () => {
+    writeFileSync(`${dir()}/config.json`, 'not json at all')
+    const { loadConfig, takeRecoveryNotice } = await import('./store')
+    loadConfig()
+
+    const notice = takeRecoveryNotice()
+    expect(notice).toMatch(/config\.json\.corrupt-\d+$/)
+    expect(existsSync(notice as string)).toBe(true)
+    expect(takeRecoveryNotice()).toBeNull()
+  })
+
+  it('has nothing to report after a clean load', async () => {
+    const { loadConfig, takeRecoveryNotice } = await import('./store')
+    loadConfig()
+    expect(takeRecoveryNotice()).toBeNull()
+  })
+
   it('round-trips through saveConfig', async () => {
     const { loadConfig, saveConfig } = await import('./store')
     const config = { ...defaultConfig(), master: 0.4 }

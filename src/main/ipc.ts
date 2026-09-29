@@ -1,5 +1,6 @@
 import { app, ipcMain, dialog, BrowserWindow, shell } from 'electron'
-import { loadConfig, saveConfig } from './store'
+import { basename } from 'path'
+import { loadConfig, saveConfig, takeRecoveryNotice } from './store'
 import * as library from './library'
 import { syncPadHotkeys, suspend, resume } from './hotkeys'
 import { writePack, readPack } from './soundpack'
@@ -13,6 +14,7 @@ export function registerIpc(
   ipcMain.handle('hotkeys:hookError', () => getHookError())
 
   ipcMain.handle('config:get', () => loadConfig())
+  ipcMain.handle('config:recoveryNotice', () => takeRecoveryNotice())
 
   ipcMain.handle('config:save', (_e, config: Config) => {
     saveConfig(config)
@@ -33,16 +35,23 @@ export function registerIpc(
   })
 
   ipcMain.handle('library:import', async (_e, filePaths: string[]) => {
-    const out: library.ImportedSound[] = []
+    const imported: library.ImportedSound[] = []
+    const skipped: { name: string; reason: string }[] = []
     for (const p of filePaths) {
-      if (!library.isSupported(p)) continue
+      const name = basename(p)
+      if (!library.isSupported(p)) {
+        skipped.push({ name, reason: 'not an audio format Soundboard plays' })
+        continue
+      }
       try {
-        out.push(await library.importSound(p))
-      } catch {
-        // A single unreadable file should not abort the whole drop.
+        imported.push(await library.importSound(p))
+      } catch (err) {
+        // One unreadable file must not abort the whole drop -- but it must
+        // not vanish without a word either.
+        skipped.push({ name, reason: (err as Error).message || 'could not be read' })
       }
     }
-    return out
+    return { imported, skipped }
   })
 
   ipcMain.handle('library:read', async (_e, hash: string, ext: string) => {

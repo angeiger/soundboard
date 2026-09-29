@@ -38,6 +38,8 @@ export default function App(): React.JSX.Element {
   const hotkeyIssues = useStore((s) => s.hotkeyIssues)
   const pads = useStore((s) => s.config.pads)
   const saveError = useStore((s) => s.saveError)
+  const recoveredConfig = useStore((s) => s.recoveredConfig)
+  const dismissRecoveredConfig = useStore((s) => s.dismissRecoveredConfig)
   const [hookError, setHookError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -89,6 +91,27 @@ export default function App(): React.JSX.Element {
     <div className="flex h-full flex-col bg-bg">
       <TitleBar />
       <UpdateBanner />
+
+      {recoveredConfig && (
+        <div
+          role="alert"
+          className="flex items-start gap-3 border-b border-[rgba(255,176,32,.25)] bg-[rgba(255,176,32,.06)] px-4 py-2"
+        >
+          <p className="min-w-0 text-[12px] leading-relaxed text-[var(--neon-amber)]">
+            Your settings file was damaged, so Soundboard started with defaults and your pads are
+            not shown. The old file was kept in case they need recovering:
+            <span className="ml-1 break-all font-mono text-[10.5px] text-txt-dim">{recoveredConfig}</span>
+          </p>
+          <button
+            type="button"
+            className="btn-ghost ml-auto shrink-0"
+            aria-label="Dismiss"
+            onClick={dismissRecoveredConfig}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {saveError && (
         <div

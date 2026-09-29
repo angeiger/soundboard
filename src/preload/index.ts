@@ -16,11 +16,15 @@ export interface ImportedSound {
 const api = {
   config: {
     get: (): Promise<Config> => ipcRenderer.invoke('config:get'),
-    save: (config: Config): Promise<void> => ipcRenderer.invoke('config:save', config)
+    save: (config: Config): Promise<void> => ipcRenderer.invoke('config:save', config),
+    /** Where a corrupt config was set aside at startup, once; null normally. */
+    recoveryNotice: (): Promise<string | null> => ipcRenderer.invoke('config:recoveryNotice')
   },
   library: {
     pickFiles: (): Promise<string[]> => ipcRenderer.invoke('library:pickFiles'),
-    import: (filePaths: string[]): Promise<ImportedSound[]> =>
+    import: (
+      filePaths: string[]
+    ): Promise<{ imported: ImportedSound[]; skipped: { name: string; reason: string }[] }> =>
       ipcRenderer.invoke('library:import', filePaths),
     read: (hash: string, ext: string): Promise<ArrayBuffer> =>
       ipcRenderer.invoke('library:read', hash, ext),
@@ -67,6 +71,8 @@ const api = {
     try {
       return webUtils.getPathForFile(file) || null
     } catch {
+      // Not a file on disk -- dragged text or a link -- so there is nothing to
+      // import, and the drop simply ignores it.
       return null
     }
   },
