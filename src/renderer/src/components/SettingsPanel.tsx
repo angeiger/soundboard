@@ -102,6 +102,7 @@ export function SettingsPanel(): React.JSX.Element {
 
   const hasCable = devices.outputs.some((d) => d.isVirtualCable)
   const gateAvailable = status?.gateAvailable ?? true
+  const denoiseAvailable = status?.denoiseAvailable ?? true
 
   return (
     <div
@@ -293,6 +294,28 @@ export function SettingsPanel(): React.JSX.Element {
                 background: `linear-gradient(to right, var(--neon-cyan) ${((mic.gateThreshold + 80) / 70) * 100}%, #22222E ${((mic.gateThreshold + 80) / 70) * 100}%)`
               }}
             />
+
+            <div>
+              <label className="flex items-center gap-2.5 text-[12px] text-txt-dim">
+                <input
+                  type="checkbox"
+                  checked={mic.denoiseEnabled && denoiseAvailable}
+                  disabled={!denoiseAvailable}
+                  onChange={(e) => setMic({ denoiseEnabled: e.target.checked })}
+                  className="accent-[var(--neon-cyan)]"
+                />
+                Noise removal
+                {!denoiseAvailable && (
+                  <span className="text-[11px] text-[#FF6B6B]" title={status?.denoiseError ?? undefined}>
+                    failed to load — your mic works without it
+                  </span>
+                )}
+              </label>
+              <p className="ml-[26px] mt-0.5 text-[11px] leading-relaxed text-txt-faint">
+                Takes out steady background noise — a fan, hum, a noisy room — even while you
+                talk, which the gate cannot. Adds about 30 ms to your voice.
+              </p>
+            </div>
 
             <label className="flex items-center gap-2.5 text-[12px] text-txt-dim">
               <input

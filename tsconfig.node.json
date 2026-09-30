@@ -16,6 +16,7 @@
   "include": [
     "electron.vite.config.ts",
     "vitest.config.ts",
+    "build/**/*.ts",
     "src/main/**/*",
     "src/preload/**/*",
     "src/shared/**/*"

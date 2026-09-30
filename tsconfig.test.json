@@ -21,5 +21,7 @@
       "@shared/*": ["src/shared/*"]
     }
   },
-  "include": ["src/**/*.test.ts"]
+  // The renderer's module declarations -- Vite's client types, and the RNNoise
+  // virtual module -- which renderer code the tests load relies on.
+  "include": ["src/**/*.test.ts", "src/renderer/src/env.d.ts", "src/renderer/src/virtual.d.ts"]
 }

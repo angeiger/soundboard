@@ -17,7 +17,8 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json,tsconfig.test.json}'
   - '!{tailwind.config.js,postcss.config.js,electron-builder.yml,vitest.config.ts}'
   # Development material that was being shipped inside every installer.
-  - '!{docs,test-sounds,.claude}/**'
+  # build/ holds Vite plugins; what they produce is already in out/.
+  - '!{docs,test-sounds,build,.claude}/**'
   - '!{README.md,RELEASE_NOTES.md}'
   - '!*.tsbuildinfo'
 win:

@@ -52,6 +52,10 @@ export interface LocalAudioStatus {
   mic: MicStatus
   /** False when the noise-gate worklet failed to load, leaving its controls inert. */
   gateAvailable: boolean
+  /** False when RNNoise could not be loaded; the mic then passes through without it. */
+  denoiseAvailable: boolean
+  /** Why RNNoise is unavailable, for Settings to show. */
+  denoiseError: string | null
 }
 
 /**

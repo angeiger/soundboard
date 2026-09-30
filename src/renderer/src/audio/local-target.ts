@@ -7,6 +7,7 @@ import type {
   Level
 } from './target'
 import { gateWorkletUrl } from './gate-worklet'
+import { denoiseWorkletUrl, loadDenoiseWasm, type DenoiseWasm } from './denoise-worklet'
 import { measure } from './level'
 import type { MicSettings, OutputSettings } from '@shared/types'
 
@@ -55,10 +56,10 @@ function describeMicError(err: unknown): string {
 /**
  * The v1 audio graph.
  *
- *   mic -> gate -> compressor -> micGain -----+
- *                                             +--> cableBus -> limiter -> cable sink  (Discord)
- *   pads ------------------------------------+
- *   pads ---------------------------------------> monitorBus -> monitor sink (you)
+ *   mic -> gate -> denoise -> compressor -> micGain --+
+ *                                                    +--> cableBus -> limiter -> cable sink (Discord)
+ *   pads -------------------------------------------+
+ *   pads ----------------------------------------------> monitorBus -> monitor sink (you)
  *
  * The mic reaches the cable but never the monitor: hearing your own voice
  * 20 ms late is genuinely unbearable.
@@ -89,11 +90,16 @@ export class LocalTarget implements PlaybackTarget, LocalAudioControls, LevelMet
   private micSource: MediaStreamAudioSourceNode | null = null
   private micTap: AnalyserNode | null = null
   private micGate: AudioWorkletNode | null = null
+  private micDenoise: AudioWorkletNode | null = null
   private micComp: DynamicsCompressorNode | null = null
   private micGain: GainNode | null = null
 
   private voices = new Map<string, Voice[]>()
   private gateReady = false
+  /** Resolves to the RNNoise binary, or null once it has failed for good. */
+  private denoiseWasm: Promise<DenoiseWasm | null> = Promise.resolve(null)
+  /** Set when a processor crashed; the next build leaves RNNoise out. */
+  private forceMicRebuild = false
 
   private micSettings: MicSettings | null = null
   /** The deviceId the open stream was requested with (null: Windows default). */
@@ -107,7 +113,9 @@ export class LocalTarget implements PlaybackTarget, LocalAudioControls, LevelMet
     cableError: null,
     monitorError: null,
     mic: { state: 'off', error: null },
-    gateAvailable: true
+    gateAvailable: true,
+    denoiseAvailable: true,
+    denoiseError: null
   }
   private statusListeners = new Set<() => void>()
 
@@ -162,6 +170,22 @@ export class LocalTarget implements PlaybackTarget, LocalAudioControls, LevelMet
       this.gateReady = false
       this.updateStatus({ gateAvailable: false })
     }
+
+    // RNNoise: its worklet module, then the binary it runs. Not awaited here --
+    // pads work in the meantime, and only the mic chain waits for it. Either
+    // failing leaves the mic working without it, and says so.
+    const ctx = this.ctx
+    this.denoiseWasm = (async () => {
+      try {
+        const url = denoiseWorkletUrl()
+        await ctx.audioWorklet.addModule(url)
+        URL.revokeObjectURL(url)
+        return await loadDenoiseWasm()
+      } catch (err) {
+        this.updateStatus({ denoiseAvailable: false, denoiseError: (err as Error).message })
+        return null
+      }
+    })()
   }
 
   private makeSinkElement(stream: MediaStream): HTMLAudioElement {
@@ -281,7 +305,9 @@ export class LocalTarget implements PlaybackTarget, LocalAudioControls, LevelMet
     // no device chosen (null) the track reports the default's real id, so the
     // old comparison never matched and every settings change -- each step of
     // dragging the gate slider -- reopened the mic and rebuilt the chain.
-    const needsRebuild = !this.micStream || this.micRequested !== settings.deviceId
+    const needsRebuild =
+      !this.micStream || this.micRequested !== settings.deviceId || this.forceMicRebuild
+    this.forceMicRebuild = false
 
     this.micSettings = settings
 
@@ -292,6 +318,10 @@ export class LocalTarget implements PlaybackTarget, LocalAudioControls, LevelMet
     }
 
     if (needsRebuild) {
+      // Waited for before anything comes down, so that once the new stream is
+      // open the chain is wired without yielding: a mic unplugged mid-wiring
+      // would otherwise tear down the nodes this is still connecting.
+      const denoise = await this.denoiseWasm
       this.teardownMic()
       let stream: MediaStream
       try {
@@ -342,6 +372,36 @@ export class LocalTarget implements PlaybackTarget, LocalAudioControls, LevelMet
         node = this.micGate
       }
 
+      // After the gate, before the compressor. Always in the chain once it
+      // loads, so switching it on and off is a parameter, never a rebuild.
+      if (denoise && this.currentStatus.denoiseAvailable) {
+        const dn = new AudioWorkletNode(this.ctx, 'denoise', {
+          numberOfInputs: 1,
+          numberOfOutputs: 1,
+          outputChannelCount: [1],
+          channelCount: 1,
+          channelCountMode: 'explicit',
+          processorOptions: denoise
+        })
+        dn.port.onmessage = (e: MessageEvent<{ type: string; message?: string }>): void => {
+          // It passes the mic through untouched when it cannot run, so the
+          // chain can stay as it is; Settings just has to know.
+          if (e.data?.type === 'failed') {
+            this.updateStatus({ denoiseAvailable: false, denoiseError: e.data.message ?? null })
+          }
+        }
+        // A crashed processor outputs silence, which would take the mic with
+        // it. Rebuild without it instead.
+        dn.onprocessorerror = (): void => {
+          this.updateStatus({ denoiseAvailable: false, denoiseError: 'The noise removal processor crashed.' })
+          this.forceMicRebuild = true
+          if (this.micSettings) void this.setMic(this.micSettings)
+        }
+        this.micDenoise = dn
+        node.connect(dn)
+        node = dn
+      }
+
       node.connect(this.micComp)
       this.micComp.connect(this.micGain)
       this.micGain.connect(this.cableBus)
@@ -358,6 +418,8 @@ export class LocalTarget implements PlaybackTarget, LocalAudioControls, LevelMet
       if (threshold) threshold.value = settings.gateThreshold
       if (enabled) enabled.value = settings.gateEnabled ? 1 : 0
     }
+    const denoiseOn = this.micDenoise?.parameters.get('enabled')
+    if (denoiseOn) denoiseOn.value = settings.denoiseEnabled ? 1 : 0
     if (this.micComp) {
       // Bypassing means a threshold high enough that it never engages.
       this.micComp.threshold.value = settings.compressorEnabled ? -20 : 0
@@ -369,12 +431,16 @@ export class LocalTarget implements PlaybackTarget, LocalAudioControls, LevelMet
     this.micSource?.disconnect()
     this.micTap?.disconnect()
     this.micGate?.disconnect()
+    this.micDenoise?.disconnect()
+    // Frees RNNoise's state and lets the processor be collected.
+    this.micDenoise?.port.postMessage({ type: 'dispose' })
     this.micComp?.disconnect()
     this.micGain?.disconnect()
     this.micStream?.getTracks().forEach((t) => t.stop())
     this.micSource = null
     this.micTap = null
     this.micGate = null
+    this.micDenoise = null
     this.micComp = null
     this.micGain = null
     this.micStream = null
