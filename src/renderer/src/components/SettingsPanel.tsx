@@ -141,7 +141,7 @@ export function SettingsPanel(): React.JSX.Element {
             <p className="mt-1.5 text-[12px] leading-relaxed text-txt-dim">
               Discord can only transmit what arrives on a microphone input, so the
               soundboard needs a virtual cable to pose as one. Install VB-CABLE, reboot,
-              then set Discord’s input device to “CABLE Output”.
+              then set Discord’s microphone to “CABLE Output”.
             </p>
             <button
               type="button"
@@ -164,7 +164,7 @@ export function SettingsPanel(): React.JSX.Element {
             problem={problemOf(cableHealth(config, devices, status))}
           />
           <p className="mt-1.5 text-[11px] text-txt-faint">
-            Set Discord’s input device to the matching “CABLE Output” recording device.
+            Set Discord’s microphone to the matching “CABLE Output” recording device.
           </p>
         </section>
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { useStore } from '@/state/store'
 import { engine } from '@/audio/engine'
 import { guessCableDevice, recordingEndOf, baseLabel } from '@/audio/devices'
@@ -17,38 +17,50 @@ const SIGNAL_FLOOR = Math.pow(10, -60 / 20)
 const STEPS = ['Virtual cable', 'Output', 'Headphones', 'Microphone', 'Test', 'Discord'] as const
 
 /**
- * Discord's labels in English and German. The German ones come from German
- * Discord guides, not a German client -- if one does not match, the English
- * next to it and the explanation say what to look for.
+ * Discord's labels in English and German, in the order its Voice page shows
+ * them. The German ones are read off a German client (September 2026); the
+ * English ones are from current guides. Discord reworded this page once
+ * already -- "Input Device" became "Microphone", and the switches moved
+ * behind an Input Profile -- so each explanation also says what the setting
+ * does. Explanations are kept to one line: with two, the list pushes the
+ * test tone below it out of sight.
  */
 const DISCORD_ITEMS = [
   {
-    en: 'Input Device',
-    de: 'Eingabegerät',
+    en: 'Microphone',
+    de: 'Mikrofon',
     value: (recordingEnd: string): string => recordingEnd,
-    why: 'Output, not Input — Discord listens at the far end of the cable.'
+    why: 'Output, not Input. Speaker (Lautsprecher) beside it stays on your headphones.'
+  },
+  {
+    en: 'Input Profile',
+    de: 'Aufnahmeprofil',
+    value: (): string => 'Custom (Benutzerdefiniert)',
+    why: 'Only Custom shows the switches below. Voice Isolation would delete your sounds.'
   },
   {
     en: 'Noise Suppression',
-    de: 'Rauschunterdrückung',
+    de: 'Hintergrundgeräusche unterdrücken',
     value: (): string => 'None (Keine)',
     why: 'Krisp is trained to delete exactly the kind of sound a soundboard plays. “Standard” is not off.'
   },
   {
     en: 'Echo Cancellation',
-    de: 'Echounterdrückung',
+    de: 'Echo unterdrücken',
     value: (): string => 'Off',
     why: 'It hears your sounds in both your speakers and your mic, decides they are echo, and cancels them.'
   },
   {
     en: 'Automatic Gain Control',
-    de: 'Automatische Verstärkungsregelung',
+    de: 'Automatische Verstärkung',
     value: (): string => 'Off',
-    why: 'It rides your volume up and down around every clip.'
+    why: 'It rides your volume up and down around every clip.',
+    // Discord keeps this one and the next folded away.
+    under: 'The last two are under Advanced Voice Settings (Erweiterte Spracheinstellungen):'
   },
   {
     en: 'Advanced Voice Activity',
-    de: 'Erweiterte Sprachaktivität',
+    de: 'Erweiterte Sprachaktivierung',
     value: (): string => 'Off, if your Discord has it',
     why: 'It is trained to pass speech, so it can cut clips off mid-sound.'
   }
@@ -646,35 +658,40 @@ export function SetupWizard(): React.JSX.Element {
             <div className="flex flex-col gap-3">
               <p className="text-[12.5px] leading-relaxed text-txt-dim">
                 In Discord, click the gear next to your name → <b className="text-txt">Voice &amp; Video</b>{' '}
-                <span className="text-txt-faint">(German: Sprache &amp; Video)</span>. Match each
-                setting, then tick it off here.
+                <span className="text-txt-faint">(German: Sprach- &amp; Videochat)</span>. Match each
+                setting from the top down, then tick it off here.
               </p>
               <ul className="flex flex-col gap-1.5">
                 {DISCORD_ITEMS.map((item, i) => (
-                  <li key={item.en}>
-                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-line bg-bg px-3.5 py-2">
-                      <input
-                        type="checkbox"
-                        className="mt-[3px] accent-[var(--neon-cyan)]"
-                        checked={checks[i]}
-                        onChange={(e) =>
-                          setChecks((c) => c.map((v, j) => (j === i ? e.target.checked : v)))
-                        }
-                      />
-                      <span className="flex min-w-0 flex-col gap-0.5">
-                        <span className="text-[12.5px] text-txt">
-                          {item.en}{' '}
-                          <span className="text-txt-faint">({item.de})</span> →{' '}
-                          <b className="font-medium text-[var(--neon-cyan)]">
-                            {item.value(
-                              recordingEnd ? baseLabel(recordingEnd) : 'CABLE Output (VB-Audio Virtual Cable)'
-                            )}
-                          </b>
+                  <Fragment key={item.en}>
+                    {'under' in item && (
+                      <li className="px-1 pt-0.5 text-[11px] text-txt-dim">{item.under}</li>
+                    )}
+                    <li>
+                      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-line bg-bg px-3.5 py-2">
+                        <input
+                          type="checkbox"
+                          className="mt-[3px] accent-[var(--neon-cyan)]"
+                          checked={checks[i]}
+                          onChange={(e) =>
+                            setChecks((c) => c.map((v, j) => (j === i ? e.target.checked : v)))
+                          }
+                        />
+                        <span className="flex min-w-0 flex-col gap-0.5">
+                          <span className="text-[12.5px] text-txt">
+                            {item.en}{' '}
+                            <span className="text-txt-faint">({item.de})</span> →{' '}
+                            <b className="font-medium text-[var(--neon-cyan)]">
+                              {item.value(
+                                recordingEnd ? baseLabel(recordingEnd) : 'CABLE Output (VB-Audio Virtual Cable)'
+                              )}
+                            </b>
+                          </span>
+                          <span className="text-[11px] leading-relaxed text-txt-faint">{item.why}</span>
                         </span>
-                        <span className="text-[11px] leading-relaxed text-txt-faint">{item.why}</span>
-                      </span>
-                    </label>
-                  </li>
+                      </label>
+                    </li>
+                  </Fragment>
                 ))}
               </ul>
               <div className="flex items-center gap-3">
@@ -686,13 +703,15 @@ export function SetupWizard(): React.JSX.Element {
                   ▶ Play test tone
                 </button>
                 <span className="text-[11px] leading-relaxed text-txt-faint">
-                  Discord’s input level meter should move while it plays.
+                  Discord’s input sensitivity bar (Mikrofonempfindlichkeit) should light up while
+                  it plays.
                 </span>
               </div>
               <Note tone="info">
-                Leave Discord’s <b className="text-txt">Output Device</b> on your headphones —
-                never the cable. Soundboard already cleans up your microphone with its own noise
-                gate and compressor, so turning Discord’s processing off loses nothing.
+                Leave Discord’s <b className="text-txt">Speaker</b>{' '}
+                <span className="text-txt-faint">(Lautsprecher)</span> on your headphones — never
+                the cable. Soundboard already cleans up your microphone with its own noise gate,
+                noise removal and compressor, so turning Discord’s processing off loses nothing.
               </Note>
               {defaultIsCable && (
                 <Note tone="warn">

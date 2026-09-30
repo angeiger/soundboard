@@ -99,9 +99,10 @@ a test tone arrive on the cable. Settings → **Run setup again** reopens it.
 
 1. Install [VB-CABLE](https://vb-audio.com/Cable/) and reboot.
 2. In the app: Settings → output = `CABLE Input`, monitor = your headphones.
-3. In Discord: Input Device = `CABLE Output`.
-4. In Discord: turn **off** Noise Suppression, Echo Cancellation and Automatic Gain
-   Control.
+3. In Discord → Voice & Video: Microphone (older versions: Input Device) = `CABLE Output`.
+4. In Discord: Input Profile = **Custom**, which is what reveals the switches. Then
+   Noise Suppression = None, and Echo Cancellation and Automatic Gain Control **off** —
+   the last one is under Advanced Voice Settings.
 5. Optional but worth it: raise the voice channel's bitrate to 96–128 kbps.
 
 ### Bluetooth headsets

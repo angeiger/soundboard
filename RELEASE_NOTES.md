@@ -68,12 +68,18 @@ It covers everything. In short, in case you ever need it without the wizard:
 In Soundboard → Settings: output `CABLE Input`, monitor your headphones, mic your
 actual microphone.
 
-In Discord → Voice & Video (German: *Sprache & Video*): input device
-**`CABLE Output`** (not Input) — *Eingabegerät* — and turn **off** Noise Suppression
-(*Rauschunterdrückung*), Echo Cancellation (*Echounterdrückung*) and Automatic Gain
-Control (*Automatische Verstärkungsregelung*). Discord's processing cannot tell a
-voice from a sound effect and will eat your clips — Soundboard cleans up your
-microphone itself instead.
+In Discord → Voice & Video (German: *Sprach- & Videochat*), from the top down:
+
+- **Microphone** (*Mikrofon*) → `CABLE Output` — Output, not Input
+- **Input Profile** (*Aufnahmeprofil*) → Custom (*Benutzerdefiniert*). The switches
+  below only show up once this is set.
+- **Noise Suppression** (*Hintergrundgeräusche unterdrücken*) → None (*Keine*)
+- **Echo Cancellation** (*Echo unterdrücken*) → off
+- **Automatic Gain Control** (*Automatische Verstärkung*) → off. It is under Advanced
+  Voice Settings (*Erweiterte Spracheinstellungen*).
+
+Discord's processing cannot tell a voice from a sound effect and will eat your
+clips — Soundboard cleans up your microphone itself instead.
 
 That's it — no administrator rights needed, and nothing to configure per game.
 
