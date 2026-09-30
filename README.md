@@ -36,9 +36,18 @@ misdiagnosis of the above.
 cancellation and auto gain to whatever arrives on the input device, and cannot tell your
 voice from a sound effect — Krisp is trained to delete exactly the kind of audio a
 soundboard plays, and AEC cancels the clips because it sees them in both the mic and the
-speaker path. So Discord's processing must be off, and we run a noise gate and
-compressor on the mic branch *before* mixing instead. Sound effects pass through
+speaker path. So Discord's processing must be off, and we run a noise gate, RNNoise
+and a compressor on the mic branch *before* mixing instead. Sound effects pass through
 untouched.
+
+The gate only helps between sentences — it is open by definition while you talk.
+RNNoise runs continuously, so it also takes out the fan or hum *underneath* your
+voice. It costs 29 ms: RNNoise works on 480-sample frames and Web Audio hands over 128
+at a time, which needs a 448-sample head start (9.3 ms), and this RNNoise build delays
+by 20 ms on its own. The binary is the one `@jitsi/rnnoise-wasm` embeds in
+`rnnoise-sync.js`, extracted at build time by `build/rnnoise-wasm.ts`. Its standalone
+`rnnoise.wasm` would be 10 ms faster, but it barely suppresses anything — about 1 dB
+on white noise against 60+. A test fails if anyone switches back to it.
 
 **Playback goes through a swappable target.** `PlaybackTarget` (`src/renderer/src/audio/
 target.ts`) is the seam between "a pad was triggered" and "sound came out". v1 ships
@@ -48,18 +57,30 @@ voice channel. Nothing above that interface knows which is active.
 ## Audio graph
 
 ```
-  mic -> gate -> compressor -> micGain --+
-                                         +--> cableBus -> cable sink   (Discord)
-  pads -----------------------------------+
-  pads --------------------------------------> monitorBus -> monitor sink (you)
+  mic -> gate -> denoise -> compressor -> micGain --+
+                                                    +--> cableBus -> limiter -> cable sink (Discord)
+  pads --------------------------------------------+
+  pads -----------------------------------------------> monitorBus -> monitor sink (you)
 ```
 
 The mic reaches the cable but never the monitor — hearing your own voice 20 ms late is
 unbearable. Both sinks are `MediaStreamAudioDestinationNode`s feeding hidden `<audio>`
 elements, because `setSinkId` lives on `HTMLMediaElement` and is the only way to aim Web
-Audio at a specific Windows output device.
+Audio at a specific Windows output device. The limiter is there because voice and pads
+are summed: a loud clip landing mid-sentence would otherwise clip, and only the people
+listening would hear it.
+
+The gate and RNNoise are AudioWorklets, each authored as a source string and loaded
+from a blob URL. Worklets are governed by the CSP's `script-src`, not `worker-src` — with
+`blob:` only on `worker-src`, the gate was refused and never ran, and nothing said so.
+RNNoise also needs `'wasm-unsafe-eval'`, which permits compiling WebAssembly and nothing
+else. Both are in `src/renderer/index.html`. If either worklet fails to load, the mic
+still works without it and Settings says what failed.
 
 ## Setup
+
+On first launch a setup wizard walks through this, and will not finish until it has seen
+a test tone arrive on the cable. Settings → **Run setup again** reopens it.
 
 1. Install [VB-CABLE](https://vb-audio.com/Cable/) and reboot.
 2. In the app: Settings → output = `CABLE Input`, monitor = your headphones.
@@ -98,10 +119,37 @@ never breaks a pad, and soundpack export always has the bytes.
 
 ```bash
 npm run dev        # dev with HMR
-npm run typecheck  # tsc over main, preload and renderer
+npm run typecheck  # tsc over main, preload, renderer and tests
+npm test           # Vitest: the audio maths, accelerators, soundpacks, config migration, RNNoise
 npm run build      # typecheck + bundle to out/
-npm run dist       # NSIS installer into dist/
+npm run dist       # NSIS installer + latest.yml into dist/
 ```
+
+The RNNoise tests run the real worklet against the real wasm on a recorded voice
+(`test-sounds/test-speech.wav`), so they measure noise reduction, voice level and
+latency rather than trusting the code.
+
+## Releases and updates
+
+The app updates itself from GitHub releases with `electron-updater`. It downloads in the
+background and then *asks* — a soundboard that restarted itself mid-game would be worse
+than a stale one. The version shows in Settings, beside **Check for updates**.
+
+```bash
+# bump "version" in package.json, then
+npm run dist
+gh release create vX.Y.Z dist/Soundboard-setup.exe dist/Soundboard-setup.exe.blockmap dist/latest.yml \
+  --title "Soundboard X.Y.Z" --notes-file RELEASE_NOTES.md
+```
+
+- **`latest.yml` must be attached to every release.** It is what the updater reads.
+  The blockmap lets later updates download only what changed.
+- **The installer name stays version-less.** GitHub's `/releases/latest/download/<name>`
+  link resolves by exact filename; a version in the name breaks the permanent download
+  link already handed out. The updater reads the version from `latest.yml`.
+- **Nothing is signed, so `publisherName` stays unset.** With it, electron-updater
+  would look for a signature that does not exist and refuse every update.
+- Anyone on 0.1.x has no updater yet and installs 0.2.0 by hand, once.
 
 ### If `npm run dist` fails on a fresh machine
 
