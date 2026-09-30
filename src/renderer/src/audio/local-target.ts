@@ -96,6 +96,8 @@ export class LocalTarget implements PlaybackTarget, LocalAudioControls, LevelMet
   private gateReady = false
 
   private micSettings: MicSettings | null = null
+  /** The deviceId the open stream was requested with (null: Windows default). */
+  private micRequested: string | null = null
   /** setMic awaits getUserMedia; overlapping calls would each wire a mic in. */
   private micQueue: Promise<void> = Promise.resolve()
 
@@ -275,8 +277,11 @@ export class LocalTarget implements PlaybackTarget, LocalAudioControls, LevelMet
   private async applyMic(settings: MicSettings): Promise<void> {
     if (!this.ctx || !this.cableBus) return
 
-    const currentDevice = this.micStream?.getAudioTracks()[0]?.getSettings().deviceId ?? null
-    const needsRebuild = !this.micStream || currentDevice !== settings.deviceId
+    // Compared against what was asked for, not what the track reports: with
+    // no device chosen (null) the track reports the default's real id, so the
+    // old comparison never matched and every settings change -- each step of
+    // dragging the gate slider -- reopened the mic and rebuilt the chain.
+    const needsRebuild = !this.micStream || this.micRequested !== settings.deviceId
 
     this.micSettings = settings
 
@@ -307,6 +312,7 @@ export class LocalTarget implements PlaybackTarget, LocalAudioControls, LevelMet
       }
 
       this.micStream = stream
+      this.micRequested = settings.deviceId
       // A USB mic pulled mid-game ends its track with no other signal at all.
       stream.getAudioTracks()[0]?.addEventListener('ended', () => {
         if (this.micStream !== stream) return
