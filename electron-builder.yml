@@ -21,6 +21,17 @@ files:
   - '!{docs,test-sounds,build,.claude}/**'
   - '!{README.md,RELEASE_NOTES.md}'
   - '!*.tsbuildinfo'
+# What the installer redistributes as files of its own, rather than compiled
+# into the bundle: the two fonts (the OFL asks for its text to travel with
+# them) and the RNNoise build (Apache-2.0 likewise). They land in
+# resources/licenses beside the app.
+extraResources:
+  - from: node_modules/@fontsource-variable/inter/LICENSE
+    to: licenses/Inter.txt
+  - from: node_modules/@fontsource-variable/jetbrains-mono/LICENSE
+    to: licenses/JetBrains-Mono.txt
+  - from: node_modules/@jitsi/rnnoise-wasm/LICENSE
+    to: licenses/rnnoise-wasm.txt
 win:
   target:
     - target: nsis

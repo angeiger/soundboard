@@ -92,6 +92,10 @@ Declaring the files' full range would quietly restyle the whole app. And
 CSP refuses for fonts; the smallest subset is 2 KB. Screenshots taken before and after
 the move were pixel-identical.
 
+Both fonts are under the SIL Open Font License, which asks for its text to travel with
+the files. The installer puts it in `resources/licenses`, along with the licence of the
+RNNoise build — see `extraResources` in `electron-builder.yml`.
+
 ## Setup
 
 On first launch a setup wizard walks through this, and will not finish until it has seen
