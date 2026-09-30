@@ -77,6 +77,21 @@ RNNoise also needs `'wasm-unsafe-eval'`, which permits compiling WebAssembly and
 else. Both are in `src/renderer/index.html`. If either worklet fails to load, the mic
 still works without it and Settings says what failed.
 
+## Fonts
+
+Inter and JetBrains Mono ship inside the app: `src/renderer/src/fonts.css`, with the
+files from the `@fontsource-variable` packages. They used to come from Google Fonts on
+every launch, which meant a request to Google each time and fallback fonts offline. The
+CSP now allows no remote host at all.
+
+Two things in there are deliberate. The `@font-face` rules declare only the weights
+Google served — Inter 400 to 600, JetBrains Mono 500 and 700 — because the UI is tuned
+to what that does to every other weight: bold Inter draws at 600, regular mono at 500.
+Declaring the files' full range would quietly restyle the whole app. And
+`assetsInlineLimit` is 0, because Vite turns small assets into `data:` URLs, which the
+CSP refuses for fonts; the smallest subset is 2 KB. Screenshots taken before and after
+the move were pixel-identical.
+
 ## Setup
 
 On first launch a setup wizard walks through this, and will not finish until it has seen

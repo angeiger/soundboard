@@ -37,6 +37,10 @@ Also fixed: a fresh install played your own mic through your speakers until you
 picked the cable. And Soundboard no longer opens your microphone at startup just
 to read device names, which Windows showed as the app using your mic.
 
+The fonts are built in now. Soundboard used to download them from Google every
+time it started, and fell back to plain Windows fonts when it couldn't. It now
+looks the same online or offline.
+
 ---
 
 A soundboard that plays into Discord voice chat, with global hotkeys that work
